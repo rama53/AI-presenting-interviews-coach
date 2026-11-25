@@ -33,20 +33,20 @@ export function ProgressChart() {
             x2={chart.width - chart.right}
             y1={yFor(score)}
             y2={yFor(score)}
-            stroke="#eeebf0"
+            stroke="#e8e3d9"
             strokeDasharray="3 5"
           />
         ))}
         <path d={`${path} L ${xFor(scores.length - 1)} ${chart.height - chart.bottom} L ${xFor(0)} ${chart.height - chart.bottom} Z`} fill="url(#score-fill)" />
         <defs>
           <linearGradient id="score-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#b7a7d7" stopOpacity="0.23" />
-            <stop offset="100%" stopColor="#b7a7d7" stopOpacity="0" />
+            <stop offset="0%" stopColor="#a9b9c5" stopOpacity="0.23" />
+            <stop offset="100%" stopColor="#a9b9c5" stopOpacity="0" />
           </linearGradient>
         </defs>
-        <path d={path} fill="none" stroke="#7963a6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke="#2b4661" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {scores.map((point, index) => (
-          <circle key={point.week} cx={xFor(index)} cy={yFor(point.score)} r={index === scores.length - 1 ? 5 : 3.5} fill={index === scores.length - 1 ? '#7963a6' : '#fff'} stroke="#7963a6" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <circle key={point.week} cx={xFor(index)} cy={yFor(point.score)} r={index === scores.length - 1 ? 5 : 3.5} fill={index === scores.length - 1 ? '#2b4661' : '#fff'} stroke="#2b4661" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         ))}
         {scores.map((point, index) => (
           <text key={point.week} x={xFor(index)} y={chart.height - 4} textAnchor="middle" fill="#96919d" fontSize="10" fontFamily="inherit">

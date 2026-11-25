@@ -27,8 +27,8 @@ export function DashboardSidebar() {
     <>
       <aside className="hidden min-h-screen w-[248px] shrink-0 flex-col border-r border-[#e9e6e1] bg-[#fcfbf9] px-5 py-7 lg:flex">
         <a href="#dashboard" className="mb-12 flex items-center gap-3 px-2" aria-label="Speakwell home">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-[#ede8f7] text-[#695592]">
-            <span className="size-2.5 rounded-full bg-[#7963a6]" />
+          <span className="flex size-9 items-center justify-center rounded-xl bg-[#e9edf0] text-[#36536d]">
+            <span className="size-2.5 rounded-full bg-[#2b4661]" />
           </span>
           <span className="text-[17px] font-semibold tracking-[-0.04em] text-[#292631]">speakwell</span>
         </a>
@@ -40,7 +40,7 @@ export function DashboardSidebar() {
               key={label}
               href={href}
               aria-current={index === 0 ? 'page' : undefined}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${index === 0 ? 'bg-[#efebf7] text-[#584878]' : 'text-[#76727d] hover:bg-[#f3f1ee] hover:text-[#302d35]'}`}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${index === 0 ? 'bg-[#e7ebee] text-[#334e68]' : 'text-[#76727d] hover:bg-[#f3f1ee] hover:text-[#302d35]'}`}
             >
               <Icon aria-hidden="true" className="size-[17px]" strokeWidth={1.8} />
               {label}
@@ -50,7 +50,7 @@ export function DashboardSidebar() {
 
         <div className="mt-auto rounded-2xl border border-[#eae6e1] bg-white p-4" id="settings">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f0e5df] text-xs font-semibold text-[#795747]" aria-label="Maya Chen">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#ece4d7] text-xs font-semibold text-[#8a7048]" aria-label="Maya Chen">
               MC
             </span>
             <div className="min-w-0">
@@ -64,8 +64,8 @@ export function DashboardSidebar() {
 
       <div className="fixed inset-x-0 top-0 z-20 flex w-full items-center justify-between border-b border-[#e9e6e1] bg-[#fcfbf9]/95 px-5 py-3 backdrop-blur lg:hidden">
         <a href="#dashboard" className="flex items-center gap-2.5" aria-label="Speakwell home">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-[#ede8f7]">
-            <span className="size-2 rounded-full bg-[#7963a6]" />
+          <span className="flex size-8 items-center justify-center rounded-lg bg-[#e9edf0]">
+            <span className="size-2 rounded-full bg-[#2b4661]" />
           </span>
           <span className="text-[16px] font-semibold tracking-[-0.04em] text-[#292631]">speakwell</span>
         </a>
@@ -74,7 +74,7 @@ export function DashboardSidebar() {
           onClick={() => setMenuOpen((open) => !open)}
           aria-expanded={menuOpen}
           aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
-          className="flex size-10 items-center justify-center rounded-xl text-[#615b68] hover:bg-[#f0edf4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7963a6]"
+          className="flex size-10 items-center justify-center rounded-xl text-[#615b68] hover:bg-[#f0edf4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2b4661]"
         >
           {menuOpen ? <X aria-hidden="true" className="size-5" /> : <Menu aria-hidden="true" className="size-5" />}
         </button>
@@ -86,7 +86,7 @@ export function DashboardSidebar() {
                 href={href}
                 aria-current={index === 0 ? 'page' : undefined}
                 onClick={() => setMenuOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium ${index === 0 ? 'bg-[#efebf7] text-[#584878]' : 'text-[#76727d] hover:bg-[#f3f1ee]'}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium ${index === 0 ? 'bg-[#e7ebee] text-[#334e68]' : 'text-[#76727d] hover:bg-[#f3f1ee]'}`}
               >
                 <Icon aria-hidden="true" className="size-[17px]" strokeWidth={1.8} />
                 {label}
