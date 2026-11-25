@@ -19,7 +19,7 @@ const path = scores.map((point, index) => `${index === 0 ? 'M' : 'L'} ${xFor(ind
 export function ProgressChart() {
   return (
     <div className="mt-5" role="img" aria-label="Your communication score increased from 58 to 88 over the past eight weeks">
-      <div className="mb-2 flex items-center justify-between text-[10px] text-[#aaa5ad]" aria-hidden="true">
+      <div className="mb-2 flex items-center justify-between text-[10px] text-muted-foreground" aria-hidden="true">
         <span>100</span>
         <span>80</span>
         <span>60</span>
@@ -33,24 +33,24 @@ export function ProgressChart() {
             x2={chart.width - chart.right}
             y1={yFor(score)}
             y2={yFor(score)}
-            stroke="#eeebf0"
+            stroke="var(--border)"
             strokeDasharray="3 5"
           />
         ))}
         <path d={`${path} L ${xFor(scores.length - 1)} ${chart.height - chart.bottom} L ${xFor(0)} ${chart.height - chart.bottom} Z`} fill="url(#score-fill)" />
         <defs>
           <linearGradient id="score-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#b7a7d7" stopOpacity="0.23" />
-            <stop offset="100%" stopColor="#b7a7d7" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--chart-2)" stopOpacity="0.23" />
+            <stop offset="100%" stopColor="var(--chart-2)" stopOpacity="0" />
           </linearGradient>
         </defs>
-        <path d={path} fill="none" stroke="#7963a6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke="var(--chart-1)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {scores.map((point, index) => (
-          <circle key={point.week} cx={xFor(index)} cy={yFor(point.score)} r={index === scores.length - 1 ? 5 : 3.5} fill={index === scores.length - 1 ? '#7963a6' : '#fff'} stroke="#7963a6" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <circle key={point.week} cx={xFor(index)} cy={yFor(point.score)} r={index === scores.length - 1 ? 5 : 3.5} fill={index === scores.length - 1 ? 'var(--chart-1)' : 'var(--card)'} stroke="var(--chart-1)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
         ))}
         {scores.map((point, index) => (
-          <text key={point.week} x={xFor(index)} y={chart.height - 4} textAnchor="middle" fill="#96919d" fontSize="10" fontFamily="inherit">
-            {point.week.replace('May ', 'May ').replace('Apr ', 'Apr ')}
+          <text key={point.week} x={xFor(index)} y={chart.height - 4} textAnchor="middle" fill="var(--muted-foreground)" fontSize="10" fontFamily="inherit">
+            {point.week}
           </text>
         ))}
       </svg>
