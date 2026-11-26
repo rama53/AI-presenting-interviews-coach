@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import '@fontsource/aref-ruqaa/arabic-700.css'
+import '@fontsource/noto-naskh-arabic/arabic-700.css'
 import './globals.css'
 
 const pagesBasePath = process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH
