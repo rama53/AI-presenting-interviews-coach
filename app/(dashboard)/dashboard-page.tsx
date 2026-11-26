@@ -85,13 +85,7 @@ export function DashboardPage() {
                 key={line[0]}
                 className={`${language === 'ar' ? 'flex flex-wrap items-baseline justify-center gap-x-[0.45em]' : 'block'} ${index === 1 ? 'text-primary' : ''}`}
               >
-                {line.map((part) => (
-                  <span key={part}>
-                    {part.split(/(قِمَمَ)/u).map((segment) => segment === 'قِمَمَ'
-                      ? <span key={segment} className="font-['Noto_Naskh_Arabic',serif] text-[0.9em]">{segment}</span>
-                      : segment)}
-                  </span>
-                ))}
+                {line.map((part) => <span key={part}>{part}</span>)}
               </span>
             ))}
           </h1>
