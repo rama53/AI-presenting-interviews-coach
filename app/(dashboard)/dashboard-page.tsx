@@ -76,14 +76,14 @@ export function DashboardPage() {
       <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="px-1 py-9 text-center sm:px-8 sm:py-14">
+        <header className="@container px-1 py-9 text-center sm:px-8 sm:py-14">
           <h1 className={language === 'ar'
-            ? "font-['Aref_Ruqaa',serif] mx-auto max-w-4xl space-y-3 text-[clamp(1.5rem,3.1vw,2.9rem)] font-bold leading-[1.55] text-sidebar"
+            ? "font-['Aref_Ruqaa',serif] mx-auto max-w-4xl space-y-3 text-[min(4.7cqw,2.9rem)] font-bold leading-[1.55] text-sidebar"
             : 'text-3xl font-semibold leading-tight text-sidebar sm:text-5xl'}>
-            {text.title.map((line, index) => (
+            {text.title.map((line) => (
               <span
                 key={line[0]}
-                className={`${language === 'ar' ? 'flex flex-wrap items-baseline justify-center gap-x-[0.45em]' : 'block'} ${index === 1 ? 'text-primary' : ''}`}
+                className={language === 'ar' ? 'flex items-baseline justify-center gap-x-[0.45em] whitespace-nowrap' : 'block'}
               >
                 {line.map((part) => <span key={part}>{part}</span>)}
               </span>
