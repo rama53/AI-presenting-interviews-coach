@@ -120,10 +120,11 @@
 @layer components {
   .dashboard-waves {
     background-image:
-      radial-gradient(ellipse 90% 100% at 10% -48%, var(--primary-soft) 99.6%, transparent 100%),
-      radial-gradient(ellipse 105% 105% at 90% -35%, var(--info-soft) 99.6%, transparent 100%),
-      radial-gradient(ellipse 120% 115% at 42% -30%, var(--card) 99.6%, transparent 100%);
-    background-size: 100% clamp(27rem, 58vw, 43rem);
+      radial-gradient(ellipse 78% 64% at 12% 0%, var(--primary-soft) 12%, transparent 100%),
+      radial-gradient(ellipse 75% 54% at 92% 27%, var(--info-border), transparent 100%),
+      radial-gradient(ellipse 88% 44% at 25% 52%, var(--info-soft) 10%, transparent 100%),
+      radial-gradient(ellipse 82% 45% at 85% 58%, var(--card) 10%, transparent 100%);
+    background-size: 100% clamp(30rem, 60vw, 48rem);
     background-repeat: no-repeat;
   }
 }
