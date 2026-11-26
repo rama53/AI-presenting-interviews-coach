@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 
 type Practice = {
   title: string
-  seconds: number | null
+  defaultMinutes: number
   prompt: string
   review: string
 }
@@ -15,10 +15,22 @@ type Session =
   | { phase: 'running'; deadline: number }
   | { phase: 'finished' }
 
-export function PracticeSession({ practice, onClose }: { practice: Practice; onClose: () => void }) {
+export function PracticeSession({ practice, onClose, onComplete }: {
+  practice: Practice
+  onClose: () => void
+  onComplete: () => void
+}) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
   const [secondsLeft, setSecondsLeft] = useState(0)
   const heading = useRef<HTMLHeadingElement>(null)
+  const completed = useRef(false)
+
+  const finish = useCallback(() => {
+    if (completed.current) return
+    completed.current = true
+    setSession({ phase: 'finished' })
+    onComplete()
+  }, [onComplete])
 
   useEffect(() => {
     heading.current?.focus()
@@ -30,16 +42,16 @@ export function PracticeSession({ practice, onClose }: { practice: Practice; onC
     function updateTime(deadline: number) {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
       setSecondsLeft(remaining)
-      if (remaining === 0) setSession({ phase: 'finished' })
+      if (remaining === 0) finish()
     }
 
     const timer = window.setInterval(updateTime, 250, session.deadline)
     return () => window.clearInterval(timer)
-  }, [session])
+  }, [session, finish])
 
   function startPractice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const duration = practice.seconds ?? Number(new FormData(event.currentTarget).get('minutes')) * 60
+    const duration = Number(new FormData(event.currentTarget).get('minutes')) * 60
     setSecondsLeft(duration)
     setSession({ phase: 'running', deadline: Date.now() + duration * 1000 })
   }
@@ -48,10 +60,10 @@ export function PracticeSession({ practice, onClose }: { practice: Practice; onC
   const seconds = String(secondsLeft % 60).padStart(2, '0')
 
   return (
-    <section id="practice-session" aria-labelledby="practice-session-heading" className="mt-7 rounded-2xl border border-border bg-card p-5 sm:p-6">
-      <h2 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-lg font-semibold">
-        {session.phase === 'finished' ? 'Practice complete' : practice.title}
-      </h2>
+    <section id="practice-session" aria-labelledby="practice-session-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+      <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-2xl font-semibold tracking-tight">
+        {session.phase === 'finished' ? 'Practice complete' : `${practice.title} ${session.phase === 'ready' ? 'setup' : 'practice'}`}
+      </h1>
       {session.phase === 'finished' ? (
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           <strong className="font-semibold text-foreground">Self-review.</strong> {practice.review}
@@ -68,30 +80,28 @@ export function PracticeSession({ practice, onClose }: { practice: Practice; onC
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
-          {practice.seconds === null && (
-            <div className="mb-4">
-              <label htmlFor="interview-minutes" className="block text-sm font-medium">Interview length (minutes)</label>
-              <input
-                id="interview-minutes"
-                name="minutes"
-                type="number"
-                min={1}
-                max={120}
-                defaultValue={2}
-                required
-                className="mt-1.5 w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-ring"
-              />
-            </div>
-          )}
+          <div className="mb-4">
+            <label htmlFor="session-minutes" className="block text-sm font-medium">Session length (minutes)</label>
+            <input
+              id="session-minutes"
+              name="minutes"
+              type="number"
+              min={1}
+              max={120}
+              defaultValue={practice.defaultMinutes}
+              required
+              className="mt-1.5 w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit">Start timer</Button>
+            <Button type="submit">Start session</Button>
             <Button type="button" variant="outline" onClick={onClose}>Cancel practice</Button>
           </div>
         </form>
       ) : (
         <div className="mt-5 flex flex-wrap gap-2">
           {session.phase === 'running' && (
-            <Button type="button" onClick={() => setSession({ phase: 'finished' })}>Finish practice</Button>
+            <Button type="button" onClick={finish}>Finish practice</Button>
           )}
           <Button type="button" variant={session.phase === 'finished' ? 'default' : 'outline'} onClick={onClose}>
             {session.phase === 'finished' ? 'Back to practice options' : 'Cancel practice'}
