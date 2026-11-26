@@ -116,3 +116,14 @@
     cursor: pointer;
   }
 }
+
+@layer components {
+  .dashboard-waves {
+    background-image:
+      radial-gradient(ellipse 90% 100% at 10% -48%, var(--primary-soft) 99.6%, transparent 100%),
+      radial-gradient(ellipse 105% 105% at 90% -35%, var(--info-soft) 99.6%, transparent 100%),
+      radial-gradient(ellipse 120% 115% at 42% -30%, var(--card) 99.6%, transparent 100%);
+    background-size: 100% clamp(27rem, 58vw, 43rem);
+    background-repeat: no-repeat;
+  }
+}

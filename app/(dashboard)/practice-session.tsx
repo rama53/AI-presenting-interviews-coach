@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import type { DashboardCopy } from './copy'
-import { SelfReview } from './self-review'
+import { AssessmentCriteria } from './assessment-criteria'
 
 type Practice = {
   setup: string
   running: string
   defaultMinutes: number
   prompt: string
-  review: readonly string[]
+  criteria: readonly string[]
 }
 
 type Session =
@@ -69,7 +69,7 @@ export function PracticeSession({ practice, text, onClose, onComplete }: {
         {session.phase === 'finished' ? text.complete : session.phase === 'ready' ? practice.setup : practice.running}
       </h1>
       {session.phase === 'finished' ? (
-        <div className="mt-2"><SelfReview title={text.selfReview} questions={practice.review} /></div>
+        <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={practice.criteria} /></div>
       ) : (
         <>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{practice.prompt}</p>

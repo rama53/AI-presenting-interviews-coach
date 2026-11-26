@@ -16,7 +16,7 @@ export function DashboardSidebar({ text, children }: { text: DashboardCopy; chil
           <span aria-hidden="true" className="grid size-8 place-items-center rounded-lg bg-sidebar-primary">
             <span className="size-2 rounded-full bg-sidebar-primary-foreground" />
           </span>
-          <span className="text-lg font-semibold tracking-tight" dir="ltr">speakwell</span>
+          <span lang="ar" dir="rtl" className="font-['Aref_Ruqaa',serif] text-4xl font-bold leading-tight text-sidebar-highlight">طليق</span>
         </a>
 
         <div className="lg:mt-6">{children}</div>

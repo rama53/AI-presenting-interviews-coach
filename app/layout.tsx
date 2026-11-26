@@ -7,8 +7,8 @@ const pagesBasePath = process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH
 const publicAsset = (path: string) => `${pagesBasePath ?? ''}/${path}`
 
 export const metadata: Metadata = {
-  title: 'سبيك ويل | التدريب على التحدث',
-  description: 'تدرّب على عرضك التقديمي أو مقابلتك القادمة مع سبيك ويل.',
+  title: 'طليق | التدريب على التحدث',
+  description: 'تدرّب على عرضك التقديمي أو مقابلتك القادمة مع طليق.',
   generator: 'v0.app',
   icons: {
     icon: [

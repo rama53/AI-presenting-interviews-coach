@@ -72,17 +72,22 @@ export function DashboardPage() {
   }
 
   return (
-    <div id="dashboard" className="min-h-screen bg-background text-foreground lg:flex">
+    <div id="dashboard" className="dashboard-waves min-h-screen bg-background text-foreground lg:flex">
       <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="rounded-3xl border border-border bg-linear-to-br from-primary-soft via-card to-info-soft px-5 py-10 text-center sm:px-10 sm:py-14">
+        <header className="px-1 py-9 text-center sm:px-8 sm:py-14">
           <h1 className={language === 'ar'
-            ? "font-['Aref_Ruqaa',serif] text-[clamp(2.5rem,7vw,5.75rem)] font-bold leading-[1.15] text-sidebar"
+            ? "font-['Aref_Ruqaa',serif] space-y-3 text-[clamp(1.7rem,4vw,3.25rem)] font-bold leading-[1.35] text-sidebar"
             : 'text-3xl font-semibold leading-tight text-sidebar sm:text-5xl'}>
-            {text.title.map((line, index) => <span key={line} className={index === 0 ? 'block' : 'block text-primary'}>{line}</span>)}
+            {text.title.map((line, index) => (
+              <span key={line[0]} className={`flex flex-wrap justify-center gap-x-[0.65em] gap-y-1 ${index === 1 ? 'text-primary' : ''}`}>
+                {line.map((part) => <span key={part}>{part}</span>)}
+              </span>
+            ))}
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-sm leading-loose text-muted-foreground sm:text-base">{text.intro}</p>
+          <p className="mx-auto mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
         <section id="practice" aria-label={text.options} className="mt-6 grid scroll-mt-6 gap-4 sm:grid-cols-2 lg:gap-5">

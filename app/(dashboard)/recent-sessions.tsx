@@ -1,5 +1,5 @@
 import type { DashboardCopy, Language } from './copy'
-import { SelfReview } from './self-review'
+import { AssessmentCriteria } from './assessment-criteria'
 
 const storageKey = 'speakwell.recent-sessions'
 const sessionLimit = 5
@@ -68,7 +68,7 @@ export function RecentSessions({ sessions, text, language }: {
                   </summary>
                   <div className="space-y-2 px-4 pb-2 pt-1 text-sm leading-relaxed text-muted-foreground">
                     <p>{option.prompt}</p>
-                    <SelfReview title={text.selfReview} questions={option.review} />
+                    <AssessmentCriteria title={text.assessment} criteria={option.criteria} />
                   </div>
                 </details>
               </li>
