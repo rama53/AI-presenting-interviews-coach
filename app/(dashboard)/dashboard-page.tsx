@@ -4,41 +4,51 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, AudioLines, MessageSquareText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { copy, type Language } from './copy'
+import { LanguageSelect } from './language-select'
 import { DashboardSidebar } from './dashboard-sidebar'
 import { RecentSessions, readSessions, saveSession, type PracticeId, type SessionRecord } from './recent-sessions'
 import { PracticeSession } from './practice-session'
 
 const practiceOptions = [
-  {
-    id: 'presentation',
-    title: 'Presentation',
-    description: 'Rehearse a project update with a clear opening, one main point, and a close.',
-    defaultMinutes: 3,
-    icon: AudioLines,
-    action: 'Set up presentation',
-    prompt: 'Give a short update on a project you know well. Explain why it matters, what changed, and what should happen next.',
-    review: 'Could someone repeat your main point and name the next step after hearing your talk?',
-  },
-  {
-    id: 'interview',
-    title: 'Interview',
-    description: 'Answer a behavioral question using a specific example from your experience.',
-    defaultMinutes: 2,
-    icon: MessageSquareText,
-    action: 'Set up interview',
-    prompt: 'Tell me about a time you had to solve a problem with limited information. What did you do, and what happened?',
-    review: 'Did you explain your own action and give a concrete result?',
-  },
+  { id: 'presentation', defaultMinutes: 3, icon: AudioLines },
+  { id: 'interview', defaultMinutes: 2, icon: MessageSquareText },
 ] as const
+
+const languageKey = 'speakwell.language'
 
 export function DashboardPage() {
   const [selectedPractice, setSelectedPractice] = useState<(typeof practiceOptions)[number] | null>(null)
+  const [language, setLanguage] = useState<Language>('ar')
+  const text = copy[language]
   const [sessions, setSessions] = useState<SessionRecord[]>([])
   const practiceTrigger = useRef<PracticeId | null>(null)
 
   useEffect(() => {
     setSessions(readSessions())
+    try {
+      if (localStorage.getItem(languageKey) === 'en') setLanguage('en')
+    } catch {
+      // The language switch still works for the current visit.
+    }
   }, [])
+
+  useEffect(() => {
+    document.documentElement.lang = language
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
+    document.title = copy[language].pageTitle
+  }, [language])
+
+  function changeLanguage(value: Language) {
+    setLanguage(value)
+    try {
+      localStorage.setItem(languageKey, value)
+    } catch {
+      // Keep the selected language in memory when storage is unavailable.
+    }
+  }
+
+  const languageSelect = <LanguageSelect label={text.language} language={language} onChange={changeLanguage} />
 
   useEffect(() => {
     if (selectedPractice === null && practiceTrigger.current) {
@@ -50,8 +60,10 @@ export function DashboardPage() {
   if (selectedPractice) {
     return (
       <main className="mx-auto min-h-screen max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
+        <div className="mb-4 flex justify-end">{languageSelect}</div>
         <PracticeSession
-          practice={selectedPractice}
+          practice={{ ...text.modes[selectedPractice.id], defaultMinutes: selectedPractice.defaultMinutes }}
+          text={text}
           onClose={() => setSelectedPractice(null)}
           onComplete={() => setSessions(saveSession(selectedPractice.id, sessions))}
         />
@@ -61,26 +73,27 @@ export function DashboardPage() {
 
   return (
     <div id="dashboard" className="min-h-screen bg-background text-foreground lg:flex">
-      <DashboardSidebar />
+      <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
-      <main className="mx-auto w-full min-w-0 max-w-5xl px-5 py-9 sm:px-8 lg:py-14">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Practice speaking</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Choose a presentation or interview to set up your next practice session.
-        </p>
+      <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
+        <header className="rounded-3xl bg-linear-to-br from-sidebar via-sidebar to-info-strong px-5 py-9 text-sidebar-foreground sm:px-10 sm:py-12">
+          <h1 className="border-s-4 border-sidebar-primary ps-4 text-3xl font-semibold leading-tight sm:ps-5 sm:text-5xl">{text.title}</h1>
+          <p className="mt-4 max-w-xl text-sm leading-loose text-sidebar-muted sm:text-base">{text.intro}</p>
+        </header>
 
-        <section id="practice" aria-label="Practice options" className="mt-7 grid scroll-mt-6 gap-4 sm:grid-cols-2">
+        <section id="practice" aria-label={text.options} className="mt-6 grid scroll-mt-6 gap-4 sm:grid-cols-2 lg:gap-5">
           {practiceOptions.map((option) => {
             const Icon = option.icon
+            const mode = text.modes[option.id]
             const isPresentation = option.id === 'presentation'
             return (
-              <Card key={option.id} className={`rounded-[20px] border p-0 shadow-none ${isPresentation ? 'border-primary-border bg-primary-soft' : 'border-info-border bg-info-soft'}`}>
-                <CardContent className="flex h-full flex-col items-start p-5 sm:p-6">
+              <Card key={option.id} className={`rounded-[20px] border p-0 shadow-none ring-0 ${isPresentation ? 'border-primary-border bg-primary-soft' : 'border-info-border bg-info-soft'}`}>
+                <CardContent className="flex h-full flex-col items-start p-5 sm:p-7">
                   <div className={`grid size-10 place-items-center rounded-xl bg-white/80 ${isPresentation ? 'text-primary' : 'text-info'}`}>
                     <Icon aria-hidden="true" className="size-5" />
                   </div>
-                  <h2 className="mt-4 text-xl font-semibold tracking-tight">{option.title}</h2>
-                  <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">{option.description}</p>
+                  <h2 className="mt-4 text-xl font-semibold tracking-tight">{mode.title}</h2>
+                  <p className="mt-2 flex-1 text-sm leading-loose text-muted-foreground">{mode.description}</p>
                   <Button
                     size="lg"
                     type="button"
@@ -89,9 +102,9 @@ export function DashboardPage() {
                       practiceTrigger.current = option.id
                       setSelectedPractice(option)
                     }}
-                    className={`mt-5 rounded-xl ${isPresentation ? 'bg-primary hover:bg-primary-hover' : 'bg-info hover:bg-info-strong'}`}
+                    className={`mt-5 min-h-11 justify-between gap-3 self-stretch rounded-xl sm:self-start ${isPresentation ? 'bg-primary hover:bg-primary-hover' : 'bg-info hover:bg-info-strong'}`}
                   >
-                    {option.action}<ArrowRight aria-hidden="true" data-icon="inline-end" />
+                    {mode.action}<ArrowRight aria-hidden="true" data-icon="inline-end" className="rtl:rotate-180" />
                   </Button>
                 </CardContent>
               </Card>
@@ -99,7 +112,7 @@ export function DashboardPage() {
           })}
         </section>
 
-        <RecentSessions sessions={sessions} options={practiceOptions} />
+        <RecentSessions sessions={sessions} text={text} language={language} />
       </main>
     </div>
   )
