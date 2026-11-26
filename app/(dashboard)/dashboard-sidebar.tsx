@@ -1,6 +1,8 @@
+import Image from 'next/image'
 import type { ReactNode } from 'react'
 import { AudioLines, History, LayoutDashboard } from 'lucide-react'
 import type { DashboardCopy } from './copy'
+import taleeqLogo from './taleeq-logo.png'
 
 const navigation = [
   { label: 'overview', href: '#dashboard', icon: LayoutDashboard },
@@ -12,11 +14,8 @@ export function DashboardSidebar({ text, children }: { text: DashboardCopy; chil
   return (
     <aside className="bg-sidebar px-4 py-4 sm:px-8 text-sidebar-foreground lg:w-60 lg:shrink-0 lg:px-5 lg:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 lg:sticky lg:top-8 lg:block">
-        <a href="#dashboard" className="flex w-fit items-center gap-3">
-          <span aria-hidden="true" className="grid size-8 place-items-center rounded-lg bg-sidebar-primary">
-            <span className="size-2 rounded-full bg-sidebar-primary-foreground" />
-          </span>
-          <span lang="ar" dir="rtl" className="font-['Aref_Ruqaa',serif] text-4xl font-bold leading-tight text-sidebar-highlight">طليق</span>
+        <a href="#dashboard" className="block w-fit" lang="ar">
+          <Image src={taleeqLogo} alt="طليق" className="h-auto w-24 lg:w-32" />
         </a>
 
         <div className="lg:mt-6">{children}</div>
