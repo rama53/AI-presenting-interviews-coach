@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
+import type { DashboardCopy } from './copy'
+import { SelfReview } from './self-review'
 
 type Practice = {
-  title: string
+  setup: string
+  running: string
   defaultMinutes: number
   prompt: string
-  review: string
+  review: readonly string[]
 }
 
 type Session =
@@ -15,8 +18,9 @@ type Session =
   | { phase: 'running'; deadline: number }
   | { phase: 'finished' }
 
-export function PracticeSession({ practice, onClose, onComplete }: {
+export function PracticeSession({ practice, text, onClose, onComplete }: {
   practice: Practice
+  text: DashboardCopy
   onClose: () => void
   onComplete: () => void
 }) {
@@ -62,18 +66,16 @@ export function PracticeSession({ practice, onClose, onComplete }: {
   return (
     <section id="practice-session" aria-labelledby="practice-session-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
       <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-2xl font-semibold tracking-tight">
-        {session.phase === 'finished' ? 'Practice complete' : `${practice.title} ${session.phase === 'ready' ? 'setup' : 'practice'}`}
+        {session.phase === 'finished' ? text.complete : session.phase === 'ready' ? practice.setup : practice.running}
       </h1>
       {session.phase === 'finished' ? (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          <strong className="font-semibold text-foreground">Self-review.</strong> {practice.review}
-        </p>
+        <div className="mt-2"><SelfReview title={text.selfReview} questions={practice.review} /></div>
       ) : (
         <>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{practice.prompt}</p>
           {session.phase === 'running' && (
-            <p role="timer" aria-label="Time remaining" className="mt-4 text-3xl font-semibold tabular-nums">
-              {minutes}:{seconds}
+            <p role="timer" aria-label={text.remaining} className="mt-4 text-3xl font-semibold tabular-nums">
+              <bdi dir="ltr">{minutes}:{seconds}</bdi>
             </p>
           )}
         </>
@@ -81,7 +83,7 @@ export function PracticeSession({ practice, onClose, onComplete }: {
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
           <div className="mb-4">
-            <label htmlFor="session-minutes" className="block text-sm font-medium">Session length (minutes)</label>
+            <label htmlFor="session-minutes" className="block text-sm font-medium">{text.duration}</label>
             <input
               id="session-minutes"
               name="minutes"
@@ -94,17 +96,17 @@ export function PracticeSession({ practice, onClose, onComplete }: {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit">Start session</Button>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel practice</Button>
+            <Button type="submit">{text.start}</Button>
+            <Button type="button" variant="outline" onClick={onClose}>{text.cancel}</Button>
           </div>
         </form>
       ) : (
         <div className="mt-5 flex flex-wrap gap-2">
           {session.phase === 'running' && (
-            <Button type="button" onClick={finish}>Finish practice</Button>
+            <Button type="button" onClick={finish}>{text.finish}</Button>
           )}
           <Button type="button" variant={session.phase === 'finished' ? 'default' : 'outline'} onClick={onClose}>
-            {session.phase === 'finished' ? 'Back to practice options' : 'Cancel practice'}
+            {session.phase === 'finished' ? text.back : text.cancel}
           </Button>
         </div>
       )}

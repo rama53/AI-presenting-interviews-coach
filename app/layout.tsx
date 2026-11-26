@@ -6,8 +6,8 @@ const pagesBasePath = process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH
 const publicAsset = (path: string) => `${pagesBasePath ?? ''}/${path}`
 
 export const metadata: Metadata = {
-  title: 'Speakwell — Communication Coaching',
-  description: 'Build confidence for your next presentation or interview with practical communication coaching.',
+  title: 'سبيك ويل | التدريب على التحدث',
+  description: 'تدرّب على عرضك التقديمي أو مقابلتك القادمة مع سبيك ويل.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -39,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="ar" dir="rtl">
       <body className="antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && pagesBasePath === undefined && <Analytics />}
