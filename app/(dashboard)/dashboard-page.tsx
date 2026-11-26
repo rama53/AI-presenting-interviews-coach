@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, AudioLines, MessageSquareText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import { LanguageSelect } from './language-select'
 import { DashboardSidebar } from './dashboard-sidebar'
 import { RecentSessions, readSessions, saveSession, type PracticeId, type SessionRecord } from './recent-sessions'
 import { PracticeSession } from './practice-session'
+import taleeqVerses from './taleeq-verses.png'
 
 const practiceOptions = [
   { id: 'presentation', defaultMinutes: 3, icon: AudioLines },
@@ -76,19 +78,20 @@ export function DashboardPage() {
       <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="@container px-1 py-9 text-center sm:px-8 sm:py-14">
-          <h1 className={language === 'ar'
-            ? "font-['Aref_Ruqaa',serif] mx-auto max-w-4xl space-y-3 text-[min(4.7cqw,2.9rem)] font-bold leading-[1.55] text-sidebar"
-            : 'text-3xl font-semibold leading-tight text-sidebar sm:text-5xl'}>
-            {text.title.map((line) => (
-              <span
-                key={line[0]}
-                className={language === 'ar' ? 'flex items-baseline justify-center gap-x-[0.45em] whitespace-nowrap' : 'block'}
-              >
-                {line.map((part) => <span key={part}>{part}</span>)}
-              </span>
-            ))}
-          </h1>
+        <header className="px-1 py-9 text-center sm:px-8 sm:py-14">
+          {language === 'ar' ? (
+            <h1>
+              <Image
+                src={taleeqVerses}
+                alt={text.title.map((line) => line.join(' ')).join('، ')}
+                className="mx-auto aspect-[3.85/1] w-full max-w-4xl object-cover"
+              />
+            </h1>
+          ) : (
+            <h1 className="text-3xl font-semibold leading-tight text-sidebar sm:text-5xl">
+              {text.title.map((line) => <span key={line[0]} className="block">{line.join(' ')}</span>)}
+            </h1>
+          )}
           <p className="mx-auto mt-6 max-w-2xl text-sm leading-loose text-muted-foreground sm:text-base">{text.intro}</p>
           <p className="mx-auto mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
