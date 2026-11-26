@@ -76,9 +76,13 @@ export function DashboardPage() {
       <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="rounded-3xl bg-linear-to-br from-sidebar via-sidebar to-info-strong px-5 py-9 text-sidebar-foreground sm:px-10 sm:py-12">
-          <h1 className="border-s-4 border-sidebar-primary ps-4 text-3xl font-semibold leading-tight sm:ps-5 sm:text-5xl">{text.title}</h1>
-          <p className="mt-4 max-w-xl text-sm leading-loose text-sidebar-muted sm:text-base">{text.intro}</p>
+        <header className="rounded-3xl border border-border bg-linear-to-br from-primary-soft via-card to-info-soft px-5 py-10 text-center sm:px-10 sm:py-14">
+          <h1 className={language === 'ar'
+            ? "font-['Aref_Ruqaa',serif] text-[clamp(2.5rem,7vw,5.75rem)] font-bold leading-[1.15] text-sidebar"
+            : 'text-3xl font-semibold leading-tight text-sidebar sm:text-5xl'}>
+            {text.title.map((line, index) => <span key={line} className={index === 0 ? 'block' : 'block text-primary'}>{line}</span>)}
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-sm leading-loose text-muted-foreground sm:text-base">{text.intro}</p>
         </header>
 
         <section id="practice" aria-label={text.options} className="mt-6 grid scroll-mt-6 gap-4 sm:grid-cols-2 lg:gap-5">
