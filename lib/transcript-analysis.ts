@@ -1,31 +1,66 @@
 export type AnalysisMode = 'personal' | 'technical' | 'presentation'
 type Language = 'ar' | 'en'
 type Input = { transcript: string; language: Language; mode: AnalysisMode }
+type Feedback = readonly [question: string, note: string, retry: string]
+type Rule = { cue: RegExp; ar: Feedback; en: Feedback }
+
+const rules = {
+  presentation: [
+    {
+      cue: /عن موضوع (?:كتير |كثير |جدا )?(?:حلو|مهم|ممتع|شيق)|about (?:a|an) (?:very )?(?:interesting|important|great) topic/iu,
+      ar: ['شو الفكرة اللي بدك الجمهور يتذكّرها؟', 'سمّي موضوع العرض ووضّحي شو رح يستفيد الجمهور.', 'اليوم رح أحكي عن [الموضوع]، وبنهاية العرض رح تعرفوا [الفائدة].'],
+      en: ['What idea should the audience remember?', 'Name your topic and explain what the audience will gain.', 'Today I’ll talk about [topic]. By the end, you’ll know [takeaway].'],
+    },
+  ],
+  personal: [
+    {
+      cue: /فحص (?:لل)?مدخلات|تحقق من المدخلات|input validation|validat(?:ed|ing) (?:the )?inputs?/iu,
+      ar: ['كيف اختبرتِ إن فحص المدخلات بيرفض الطلب الناقص وبسمح للطلب الصحيح؟', 'ذكرتِ إجراءً محددًا. أضيفي كيف تحققتِ منه وشو كانت النتيجة.', 'أضفت فحصًا للمدخلات، واختبرته باستخدام [حالتين]، وكانت النتيجة [النتيجة].'],
+      en: ['How did you test that input validation rejects incomplete requests and accepts valid ones?', 'You named a specific action. Add how you verified it and what happened.', 'I added input validation, tested [two cases], and observed [result].'],
+    },
+    {
+      cue: /اشتغلنا|عملنا|الفريق|we worked|we built|our team/iu,
+      ar: ['شو كان دورك الشخصي، وكيف ساهم بالنتيجة؟', 'وضّحي الإجراء اللي أخذتي مسؤوليته ضمن شغل الفريق.', 'اشتغلنا على [المهمة]. دوري كان [الإجراء]، وكانت النتيجة [النتيجة].'],
+      en: ['What did you personally own, and how did it affect the outcome?', 'Clarify which action you owned within the team.', 'We worked on [task]. I owned [action], which led to [result].'],
+    },
+  ],
+  technical: [
+    {
+      cue: /قاعدة البيانات|استعلام|database|\bquery\b|\bsql\b/iu,
+      ar: ['كيف بتختبري إن حل قاعدة البيانات بشتغل مع حجم بيانات أكبر؟', 'وضّحي طريقة قياس أداء الحل والحالة اللي ممكن يفشل فيها.', 'اخترت [الحل] بسبب [السبب]، وقست [المؤشر] عند [حجم بيانات].'],
+      en: ['How would you test your database solution with a larger dataset?', 'Explain how you would measure performance and identify a failure case.', 'I chose [solution] because [reason] and measured [metric] at [data volume].'],
+    },
+    {
+      cue: /\bapi\b|طلب ناقص|فحص المدخلات|input validation/iu,
+      ar: ['شو الطلب الصحيح والطلب الناقص اللي رح تجرّبيهم، وشو الرد المتوقع لكل واحد؟', 'حدّدي سلوك الـ API المتوقع في حالة نجاح وحالة فشل.', 'بختبر [طلب صحيح] و[طلب ناقص]، وبتأكد من [الرد المتوقع] لكل حالة.'],
+      en: ['Which valid and incomplete requests would you test, and what response should each return?', 'Specify expected API behavior for one success and one failure case.', 'I would send [valid request] and [incomplete request], then check [expected response] for each.'],
+    },
+  ],
+} satisfies Record<AnalysisMode, Rule[]>
+
+const fallback = {
+  presentation: {
+    ar: ['شو مثال أو دليل بيدعم فكرتك الرئيسية؟', 'اربطي الفكرة بمثال واضح، وبيّني علاقته بالموضوع.', 'فكرتي الرئيسية هي [الفكرة]. مثال عليها [المثال]، وهو مهم لأنه [السبب].'],
+    en: ['What example or evidence supports your main point?', 'Connect your point to a concrete example and explain the connection.', 'My main point is [idea]. One example is [example], and it matters because [reason].'],
+  },
+  personal: {
+    ar: ['شو عملتِ تحديدًا، وكيف عرفتي إن الإجراء نجح؟', 'اربطي دورك بنتيجة لاحظتيها أو قستيها.', 'واجهت [الموقف]، وعملت [الإجراء]، وعرفت إنه نجح من [النتيجة].'],
+    en: ['What did you do, and how did you know it worked?', 'Connect your action to an outcome you observed or measured.', 'I faced [situation], took [action], and knew it worked because [result].'],
+  },
+  technical: {
+    ar: ['ليش اخترتِ هالحل، وكيف بتتحققي إنه بشتغل؟', 'أضيفي سبب اختيار الحل وطريقة اختباره.', 'اخترت [الحل] بسبب [السبب]، وبتأكد منه عن طريق [اختبار].'],
+    en: ['Why did you choose this solution, and how would you verify it works?', 'Add your reason for choosing the approach and how you would test it.', 'I chose [solution] because [reason] and would verify it with [test].'],
+  },
+} satisfies Record<AnalysisMode, Record<Language, Feedback>>
+
+const topicCue = /(?:عن موضوع|رح نحكي عن|رح أحكي عن|today (?:we|i).{0,24} about)\s+(.+)/iu
 
 export function analyzeTranscript({ transcript, language, mode }: Input) {
-  const words = transcript.match(/[\p{L}\p{N}]+/gu) ?? []
+  const words = transcript.match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}]*/gu) ?? []
   if (!words.length) return null
 
-  const arabic = language === 'ar'
-  const hasNumber = /\p{N}/u.test(transcript)
-  const questions = {
-    personal: arabic
-      ? ['شو كان دورك تحديدًا، وكيف قست نتيجة شغلك؟', 'شو القرار اللي أخذته بنفسك، وشو تعلمت منه؟']
-      : ['What was your specific role, and how did you measure the outcome?', 'Which decision did you make yourself, and what did you learn from it?'],
-    technical: arabic
-      ? ['كيف بتتحقق إن الحل نجح، ومتى ممكن يفشل؟', 'ليش اخترت هالحل، وشو البديل اللي قارنت معه؟']
-      : ['How would you verify that the solution works, and when might it fail?', 'Why did you choose this solution, and what alternative did you compare it with?'],
-    presentation: arabic
-      ? ['شو مثال أو دليل بيدعم فكرتك الرئيسية؟', 'شو الخطوة اللي بدك الجمهور يعملها بعد العرض؟']
-      : ['What example or evidence supports your main point?', 'What action should the audience take after the presentation?'],
-  }
-
-  const evidence = hasNumber
-    ? (arabic ? 'ذكرت رقمًا. وضّح شو بقيس وكيف بيدعم فكرتك.' : 'You included a number. Explain what it measures and how it supports your point.')
-    : (arabic ? 'جرّب تضيف مثالًا محددًا أو نتيجة قابلة للقياس إذا كانت مناسبة.' : 'Try adding a concrete example or a measurable result where appropriate.')
-  const detail = words.length < 20
-    ? (arabic ? 'وسّع الفكرة بجملة تشرح السبب أو النتيجة.' : 'Add a sentence explaining the reasoning or outcome.')
-    : (arabic ? 'راجع إذا أول جملة بتوضح الفكرة الرئيسية مباشرة.' : 'Check whether your opening sentence immediately states the main point.')
-
-  return { wordCount: words.length, followUp: questions[mode][Number(hasNumber)], notes: [evidence, detail] }
+  const rule = rules[mode].find(({ cue }) => cue.test(transcript))
+  const [followUp, note, retry] = (rule ?? fallback[mode])[language]
+  const evidence = rule ? transcript.match(rule.cue)?.[0] : mode === 'presentation' ? transcript.match(topicCue)?.[0].slice(0, 96) : undefined
+  return { wordCount: words.length, followUp, note, retry, evidence }
 }
