@@ -24,6 +24,8 @@ const labels = {
     before: 'ملاحظة على النسخة الأولى',
     compare: 'جرّبي تحسين النص',
     clear: 'إنهاء المقارنة',
+    save: 'حفظ النص الجديد',
+    saved: 'تم حفظ النص الجديد وتحديث التحليل.',
     words: 'عدد الكلمات',
   },
   en: {
@@ -43,6 +45,8 @@ const labels = {
     before: 'Feedback on your first version',
     compare: 'Try revising your text',
     clear: 'End comparison',
+    save: 'Save revised transcript',
+    saved: 'Revised transcript saved and analysis updated.',
     words: 'Word count',
   },
 }
@@ -55,6 +59,8 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
 }) {
   const text = labels[language]
   const [firstVersion, setFirstVersion] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [saved, setSaved] = useState(false)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const { transcript, setTranscript, status, busy, startMicrophone, stopMicrophone } = speech
   const result = showAnalysis || !running ? analyzeTranscript({ transcript, language, mode }) : null
@@ -71,13 +77,22 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
           className="mt-1 block w-full rounded-lg border border-input bg-card p-2"
           dir="auto"
           rows={4}
-          value={transcript}
+          value={firstVersion === null ? transcript : draft}
           onChange={(event) => {
-            setTranscript(event.target.value)
+            if (firstVersion === null) setTranscript(event.target.value)
+            else setDraft(event.target.value)
+            setSaved(false)
             setShowAnalysis(false)
           }}
         />
       </label>
+      {firstVersion !== null && (
+        <Button type="button" disabled={!draft.trim() || draft === transcript} onClick={() => {
+          setTranscript(draft)
+          setSaved(true)
+        }}>{text.save}</Button>
+      )}
+      {saved && <p role="status" className="text-sm">{text.saved}</p>}
       {running && (
         <>
           <p className="text-sm text-muted-foreground">{text.privacy}</p>
@@ -116,6 +131,8 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
           {!running && firstVersion === null && (
             <Button type="button" variant="outline" onClick={() => {
               setFirstVersion(transcript)
+              setDraft(transcript)
+              setSaved(false)
               document.getElementById('practice-transcript')?.focus()
             }}>{text.compare}</Button>
           )}
@@ -124,7 +141,10 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
               <summary className="cursor-pointer font-medium">{text.before}</summary>
               <blockquote className="my-2 whitespace-pre-wrap" dir="auto">{firstVersion}</blockquote>
               <p>{firstResult.note}</p>
-              <Button className="mt-2" type="button" variant="outline" onClick={() => setFirstVersion(null)}>{text.clear}</Button>
+              <Button className="mt-2" type="button" variant="outline" onClick={() => {
+                setFirstVersion(null)
+                setSaved(false)
+              }}>{text.clear}</Button>
             </details>
           )}
         </div>
