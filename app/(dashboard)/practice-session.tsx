@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { savePracticeEnd, savePracticeStart } from '@/lib/practice-session-api'
 import { createPortal } from 'react-dom'
 import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
+import { buildAudienceQuestion } from '@/lib/transcript-analysis'
+import { AudienceQuestion } from './audience-question'
 import { PracticeAnalysis } from './practice-analysis'
 import type { DashboardCopy, Language } from './copy'
 import type { InterviewType } from './recent-sessions'
@@ -32,16 +35,25 @@ type Session =
   | { phase: 'running'; deadline: number; attachment: File | null; roomOption: number }
   | { phase: 'finished' }
 
-export function PracticeSession({ practice, text, language, isInterview, onClose, onComplete }: {
+export function PracticeSession({ practice, text, language, isInterview, accessToken, onClose, onComplete }: {
   practice: Practice
   text: DashboardCopy
   language: Language
   isInterview: boolean
+  accessToken: string | null
   onClose: () => void
   onComplete: (interviewType?: InterviewType) => void
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
+  const savingStart = useRef(false)
+  const [isSavingStart, setIsSavingStart] = useState(false)
+  const [startError, setStartError] = useState('')
+  const [presentationTopic, setPresentationTopic] = useState('')
+  const [previousAttempt, setPreviousAttempt] = useState<string | null>(null)
+  const roomSettings = useRef<{ attachment: File | null; roomOption: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
+  const startedWithSeconds = useRef(0)
+  const [audienceQuestion, setAudienceQuestion] = useState<ReturnType<typeof buildAudienceQuestion> | null>(null)
   const [paused, setPaused] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoError, setVideoError] = useState('')
@@ -65,15 +77,29 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const isTechnical = interview?.type === 'technical'
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
+  const remoteSessionId = useRef<string | null>(null)
+  const finishing = useRef(false)
+  const autoFinishAttempted = useRef(false)
+  const [finishError, setFinishError] = useState('')
 
   const { stopMicrophone } = speech
-  const finish = useCallback(() => {
-    if (completed.current) return
+  const finish = useCallback(async () => {
+    if (completed.current || finishing.current) return
+    finishing.current = true
     stopMicrophone()
+    setFinishError('')
+    try {
+      if (accessToken && remoteSessionId.current) await savePracticeEnd(accessToken, remoteSessionId.current)
+    } catch {
+      setFinishError(language === 'ar' ? 'تعذّر حفظ وقت النهاية. اضغطي «إنهاء التدريب» مرة ثانية.' : 'Could not save the end time. Select End practice to retry.')
+      return
+    } finally {
+      finishing.current = false
+    }
     completed.current = true
     setSession({ phase: 'finished' })
     onComplete(interview?.type)
-  }, [interview?.type, onComplete, stopMicrophone])
+  }, [accessToken, interview?.type, language, onComplete, stopMicrophone])
 
   useEffect(() => {
     heading.current?.focus()
@@ -85,7 +111,10 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     function updateTime(deadline: number) {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
       setSecondsLeft(remaining)
-      if (remaining === 0) finish()
+      if (remaining === 0 && !autoFinishAttempted.current) {
+        autoFinishAttempted.current = true
+        void finish()
+      }
     }
 
     const timer = window.setInterval(updateTime, 250, session.deadline)
@@ -161,9 +190,26 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     }
   }
 
-  function startPractice(event: FormEvent<HTMLFormElement>) {
+  async function startPractice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (savingStart.current) return
     const fields = new FormData(event.currentTarget)
+    if (accessToken) {
+      savingStart.current = true
+      setIsSavingStart(true)
+      setStartError('')
+      try {
+        remoteSessionId.current = await savePracticeStart(accessToken, isInterview ? 'interview' : 'presentation')
+      } catch {
+        setStartError(language === 'ar'
+          ? 'تعذّر حفظ الجلسة. تأكدي أن السيرفر شغّال وحاولي مرة ثانية.'
+          : 'Could not save the session. Check that the API is running and try again.')
+        return
+      } finally {
+        savingStart.current = false
+        setIsSavingStart(false)
+      }
+    }
     const duration = Number(fields.get('minutes')) * 60
     if (isInterview) {
       setInterview({
@@ -172,14 +218,49 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         jobDescription: String(fields.get('job-description') ?? '').trim(),
       })
     }
+    startedWithSeconds.current = duration
     setSecondsLeft(duration)
+    if (!isInterview) setPresentationTopic(String(fields.get('presentation-topic') ?? '').trim())
     const file = fields.get('attachment')
-    setSession({
-      phase: 'running',
-      deadline: Date.now() + duration * 1000,
+    const settings = {
       attachment: file instanceof File && file.name ? file : null,
       roomOption: Number(fields.get('room-option')),
-    })
+    }
+    roomSettings.current = settings
+    setSession({ phase: 'running', deadline: Date.now() + duration * 1000, ...settings })
+  }
+
+  async function retryPresentation() {
+    const settings = roomSettings.current
+    if (!settings || speech.busy || savingStart.current) return
+    if (accessToken) {
+      savingStart.current = true
+      setIsSavingStart(true)
+      setFinishError('')
+      try {
+        remoteSessionId.current = await savePracticeStart(accessToken, 'presentation')
+      } catch {
+        setFinishError(language === 'ar' ? 'تعذّر حفظ جلسة جديدة. حاولي مرة ثانية.' : 'Could not save a new session. Try again.')
+        return
+      } finally {
+        savingStart.current = false
+        setIsSavingStart(false)
+      }
+    }
+
+    setPreviousAttempt(speech.transcript)
+    speech.setTranscript('')
+    completed.current = false
+    autoFinishAttempted.current = false
+    setAudienceQuestion(null)
+    setPaused(false)
+    setSlides(false)
+    setCamera(false)
+    setMediaError(false)
+    setVideoError('')
+    setVideoBlocked(false)
+    setSecondsLeft(startedWithSeconds.current)
+    setSession({ phase: 'running', deadline: Date.now() + startedWithSeconds.current * 1000, ...settings })
   }
 
   const minutes = Math.floor(secondsLeft / 60)
@@ -229,10 +310,26 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
             <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
+            <button type="button" disabled={paused} onClick={() => {
+              setAudienceQuestion(buildAudienceQuestion(speech.transcript, language, presentationTopic))
+              togglePause()
+            }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
+              {ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions'}
+            </button>
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
           </div>
+          {finishError && <p role="alert" className="mt-2 text-center text-sm text-white">{finishError}</p>}
         </footer>
+        {audienceQuestion && (
+          <AudienceQuestion question={audienceQuestion} language={language} onClose={() => {
+            setAudienceQuestion(null)
+            togglePause()
+          }} onFinish={() => {
+            setAudienceQuestion(null)
+            finish()
+          }} />
+        )}
       </section>, document.body
     )
   }
@@ -242,6 +339,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
       <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-2xl font-semibold tracking-tight">
         {session.phase === 'finished' ? text.complete : session.phase === 'ready' ? practice.setup : practice.running}
       </h1>
+      {finishError && <p role="alert" className="mt-3 text-sm text-red-600">{finishError}</p>}
       {session.phase === 'finished' ? (
         <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={isTechnical ? interviewText.technicalCriteria : practice.criteria} /></div>
       ) : (
@@ -276,10 +374,16 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         </>
       )}
       {session.phase !== 'ready' && (
-        <PracticeAnalysis speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
+        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
+          {!isInterview && (
+            <label className="mb-4 block text-sm font-medium">
+              {language === 'ar' ? 'موضوع العرض (اختياري)' : 'Presentation topic (optional)'}
+              <input name="presentation-topic" className={fieldClass} dir="auto" maxLength={160} />
+            </label>
+          )}
           {isInterview && (
             <div className="mb-5 grid gap-5">
               <fieldset>
@@ -353,9 +457,10 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               className={`${fieldClass} file:me-3 file:rounded-md file:border-0 file:bg-primary-soft file:px-2 file:py-1 file:font-medium file:text-primary`}
             />
           </div>
+          {startError && <p role="alert" className="mb-3 text-sm text-red-600">{startError}</p>}
           <div className="flex flex-wrap gap-2">
-            <Button type="submit">{text.start}</Button>
-            <Button type="button" variant="outline" onClick={onClose}>{text.cancel}</Button>
+            <Button type="submit" disabled={isSavingStart}>{isSavingStart ? (language === 'ar' ? 'جارٍ الحفظ…' : 'Saving…') : text.start}</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSavingStart}>{text.cancel}</Button>
           </div>
         </form>
       ) : (
@@ -366,7 +471,12 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               <Button type="button" onClick={finish}>{text.finish}</Button>
             </>
           )}
-          <Button type="button" variant={session.phase === 'finished' ? 'default' : 'outline'} onClick={onClose}>
+          {session.phase === 'finished' && !isInterview && (
+            <Button type="button" disabled={speech.busy || isSavingStart} onClick={retryPresentation}>
+              {language === 'ar' ? 'محاولة مرة أخرى' : 'Try the presentation again'}
+            </Button>
+          )}
+          <Button type="button" variant={session.phase === 'finished' && isInterview ? 'default' : 'outline'} onClick={onClose}>
             {session.phase === 'finished' ? text.back : text.cancel}
           </Button>
         </div>

@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Button } from '@/components/ui/button'
+import { loadRecentSessions, sessionApiEnabled, signIn } from '@/lib/practice-session-api'
 import { ArrowRight, AudioLines, Lightbulb, MessageSquareText, Sparkles } from 'lucide-react'
 import { copy, type Language } from './copy'
 import { LanguageSelect } from './language-select'
@@ -21,16 +23,56 @@ export function DashboardPage() {
   const [language, setLanguage] = useState<Language>('ar')
   const text = copy[language]
   const [sessions, setSessions] = useState<SessionRecord[]>([])
+  const [account, setAccount] = useState<{ email: string; token: string } | null>(null)
+  const [signingIn, setSigningIn] = useState(false)
+  const [signInError, setSignInError] = useState(false)
+  const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('ready')
   const practiceTrigger = useRef<PracticeId | null>(null)
+  const ar = language === 'ar'
+
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (signingIn) return
+    const form = event.currentTarget
+    const fields = new FormData(form)
+    const email = String(fields.get('email') ?? '').trim()
+    setSigningIn(true)
+    setSignInError(false)
+    try {
+      const token = await signIn(email, String(fields.get('password') ?? ''))
+      form.reset()
+      setAccount({ email, token })
+    } catch {
+      setSignInError(true)
+    } finally {
+      setSigningIn(false)
+    }
+  }
 
   useEffect(() => {
-    setSessions(readSessions())
+    if (!sessionApiEnabled) setSessions(readSessions())
     try {
       if (localStorage.getItem(languageKey) === 'en') setLanguage('en')
     } catch {
       // The language switch still works for the current visit.
     }
   }, [])
+
+  useEffect(() => {
+    if (!account || selectedPractice) return
+    const controller = new AbortController()
+    setHistoryStatus('loading')
+    loadRecentSessions(account.token, AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
+      .then(records => {
+        if (controller.signal.aborted) return
+        setSessions(records)
+        setHistoryStatus('ready')
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setHistoryStatus('error')
+      })
+    return () => controller.abort()
+  }, [account, selectedPractice])
 
   useEffect(() => {
     document.documentElement.lang = language
@@ -65,8 +107,11 @@ export function DashboardPage() {
           text={text}
           language={language}
           isInterview={selectedPractice.id === 'interview'}
+          accessToken={account?.token ?? null}
           onClose={() => setSelectedPractice(null)}
-          onComplete={(interviewType) => setSessions(saveSession(selectedPractice.id, sessions, interviewType))}
+          onComplete={(interviewType) => {
+            if (!sessionApiEnabled) setSessions(saveSession(selectedPractice.id, sessions, interviewType))
+          }}
         />
       </main>
     )
@@ -98,6 +143,31 @@ export function DashboardPage() {
           <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
+        {sessionApiEnabled && (
+          <section aria-labelledby="account-title" className="mt-5 rounded-2xl border border-border bg-card p-5">
+            <h2 id="account-title" className="mb-3 text-lg font-semibold">{ar ? 'تسجيل الدخول' : 'Sign in'}</h2>
+            {account ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">{ar ? 'الحساب الحالي' : 'Signed in as'} <bdi>{account.email}</bdi></p>
+                <Button variant="outline" onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSignIn} className="grid gap-3">
+                <label className="text-sm">
+                  {ar ? 'البريد الإلكتروني' : 'Email'}
+                  <input name="email" type="email" autoComplete="username" dir="ltr" required className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2" />
+                </label>
+                <label className="text-sm">
+                  {ar ? 'كلمة المرور' : 'Password'}
+                  <input name="password" type="password" autoComplete="current-password" dir="ltr" required className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2" />
+                </label>
+                {signInError && <p role="alert" className="text-sm text-red-600">{ar ? 'تعذّر تسجيل الدخول. تأكدي من بيانات الحساب وحاولي مرة ثانية.' : 'Could not sign in. Check your account details and try again.'}</p>}
+                <Button type="submit" disabled={signingIn} className="justify-self-start">{signingIn ? (ar ? 'جارٍ تسجيل الدخول…' : 'Signing in…') : (ar ? 'دخول' : 'Sign in')}</Button>
+              </form>
+            )}
+          </section>
+        )}
+
         <section aria-labelledby="performance-title" className="mt-5 scroll-mt-6">
           <div className="mb-3 flex items-center gap-2 px-1">
             <Sparkles aria-hidden="true" className="size-4 text-primary" />
@@ -105,7 +175,7 @@ export function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <article className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-              <p className="text-sm text-muted-foreground">{text.totalSessions}</p>
+              <p className="text-sm text-muted-foreground">{sessionApiEnabled ? (ar ? 'آخر ٥ جلسات' : 'Last 5 sessions') : text.totalSessions}</p>
               <p className="mt-2 flex items-baseline gap-2 text-2xl font-semibold tabular-nums">
                 <bdi dir="ltr">{sessions.length}</bdi>
                 <span className="text-xs font-normal text-muted-foreground">{text.completedSessions}</span>
@@ -151,6 +221,7 @@ export function DashboardPage() {
                     <button
                       type="button"
                       id={`choose-${option.id}`}
+                      disabled={sessionApiEnabled && !account}
                       aria-labelledby={`${titleId} choose-${option.id}-label`}
                       aria-describedby={descriptionId}
                       onClick={() => {
@@ -211,7 +282,14 @@ export function DashboardPage() {
           </button>
         </section>
 
-        <RecentSessions sessions={sessions} text={text} language={language} />
+        <RecentSessions sessions={sessions} text={text} language={language}
+          historyMessage={sessionApiEnabled
+            ? !account ? (ar ? 'سجّلي الدخول لعرض جلساتك.' : 'Sign in to view your sessions.')
+              : historyStatus === 'loading' ? (ar ? 'جارٍ تحميل الجلسات…' : 'Loading sessions…')
+              : historyStatus === 'error' ? (ar ? 'تعذّر تحميل الجلسات. حاولي تحديث الصفحة.' : 'Could not load sessions. Refresh the page to try again.')
+              : undefined
+            : undefined}
+        />
       </main>
     </div>
   )
