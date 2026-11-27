@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { audienceAnswerTip, type buildAudienceQuestion } from '@/lib/transcript-analysis'
+import { audienceAnswerTip } from '@/lib/transcript-analysis'
 import { Button } from '@/components/ui/button'
 import type { Language } from './copy'
 import { usePracticeTranscript } from './use-practice-transcript'
@@ -9,7 +9,7 @@ import { usePracticeTranscript } from './use-practice-transcript'
 const answerSeconds = 30
 
 export function AudienceQuestion({ question, language, onClose, onFinish }: {
-  question: ReturnType<typeof buildAudienceQuestion>
+  question: { text: string; audio: string | null }
   language: Language
   onClose: () => void
   onFinish: () => void
@@ -31,6 +31,7 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
     void player?.play().catch(() => {})
     return () => {
       player?.pause()
+      if (!player) window.speechSynthesis?.cancel()
       room?.close()
     }
   }, [])
@@ -49,8 +50,20 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
   }, [deadline, finished, stopMicrophone])
 
   async function readQuestion() {
-    if (!audio.current) return
     setAudioUnavailable(false)
+    if (!audio.current) {
+      const synth = window.speechSynthesis
+      if (!synth) { setAudioUnavailable(true); return }
+      const utterance = new SpeechSynthesisUtterance(question.text)
+      utterance.lang = ar ? 'ar' : 'en-US'
+      utterance.rate = 0.9
+      utterance.onerror = (event) => {
+        if (event.error !== 'canceled' && event.error !== 'interrupted') setAudioUnavailable(true)
+      }
+      synth.cancel()
+      synth.speak(utterance)
+      return
+    }
     audio.current.currentTime = 0
     try {
       await audio.current.play()
@@ -72,12 +85,13 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
     >
       <h3 className="font-semibold">{ar ? 'سؤال من الجمهور' : 'Audience question'}</h3>
       <p>{question.text}</p>
-      <audio ref={audio} preload="auto" src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-audio/${question.audio}`} />
+      {question.audio && <audio ref={audio} preload="auto" src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-audio/${question.audio}`} />}
       {deadline === null && (
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={readQuestion}>{ar ? 'استماع إلى السؤال' : 'Listen to the question'}</Button>
           <Button type="button" onClick={() => {
             audio.current?.pause()
+            if (!question.audio) window.speechSynthesis?.cancel()
             setDeadline(Date.now() + answerSeconds * 1000)
           }}>{ar ? 'بدء الإجابة · ٣٠ ثانية' : 'Start your answer · 30 seconds'}</Button>
         </div>
