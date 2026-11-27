@@ -2,7 +2,7 @@
 
 Taleeq is a bilingual web app for rehearsing job interviews and presentations. The dashboard opens in Arabic with a right-to-left layout, and users can switch to English.
 
-[Open the live site](https://rama53.github.io/AI-presenting-interviews-coach/)
+[Open the live site](https://rama53.github.io/TALEEK/)
 
 ## Current features
 
@@ -40,5 +40,5 @@ In the GitHub repository, open **Settings → Pages** and select **GitHub Action
 The workflow reads the Pages base path from GitHub, builds the static export, and publishes `out/`. To build the same export locally, run this command from the repository root.
 
 ```sh
-NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH=/AI-presenting-interviews-coach corepack pnpm build
+NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH=/TALEEK corepack pnpm build
 ```
