@@ -106,3 +106,4 @@ export function RecentSessions({ sessions, text, language, historyMessage }: {
     </section>
   )
 }
+

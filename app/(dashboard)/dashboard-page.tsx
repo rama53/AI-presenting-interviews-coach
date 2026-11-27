@@ -100,7 +100,7 @@ export function DashboardPage() {
 
   if (selectedPractice) {
     return (
-      <main className="mx-auto min-h-screen max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
+      <main className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
         <div className="mb-4 flex justify-end">{languageSelect}</div>
         <PracticeSession
           practice={{ ...text.modes[selectedPractice.id], defaultMinutes: selectedPractice.defaultMinutes }}
@@ -294,3 +294,4 @@ export function DashboardPage() {
     </div>
   )
 }
+
