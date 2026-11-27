@@ -513,7 +513,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
       })()}
       {session.phase === 'ready' && isInterview && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{language === 'ar' ? 'أخبرنا عن الوظيفة التي تستهدفها لنخصص أسئلة المقابلة وفقًا لها.' : 'Tell us about your target role so we can tailor your interview questions.'}</p>}
       {session.phase === 'ready' ? (
-        <form className={isInterview ? "mt-5 grid gap-4 lg:grid-cols-2 lg:items-start" : "mt-4"} onSubmit={startPractice}>
+        <form className={isInterview ? "mt-5 grid gap-4 lg:grid-cols-2 lg:items-stretch" : "mt-4"} onSubmit={startPractice}>
 
           {!isInterview && (
             <label className="mb-4 block text-sm font-medium">
@@ -522,13 +522,13 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             </label>
           )}
           {isInterview && (
-            <div className="grid gap-4 rounded-2xl border border-[#D5E2F0] bg-[#F0F5FC] p-4 lg:row-span-2"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#23466B] px-3 py-2 font-bold text-white">01</span><div><h2 className="font-bold text-[#182D43]">{language === "ar" ? "الوظيفة المستهدفة" : "Target role"}</h2><p className="text-xs text-slate-600">{language === "ar" ? "لنخصص الأسئلة حسب المجال ومتطلبات الوظيفة." : "Tailor questions to the role and its requirements."}</p></div></div>
+            <div className="grid content-start gap-4 rounded-2xl border border-primary-border bg-primary-soft p-4 lg:row-span-2 lg:grid-rows-[auto_auto_1fr]"><div className="flex items-center gap-3"><span className="rounded-xl bg-primary px-3 py-2 font-bold text-white">01</span><div><h2 className="font-bold text-[#182D43]">{language === "ar" ? "الوظيفة المستهدفة" : "Target role"}</h2><p className="text-xs text-slate-600">{language === "ar" ? "لنخصص الأسئلة حسب المجال ومتطلبات الوظيفة." : "Tailor questions to the role and its requirements."}</p></div></div>
               <div>
                 <label htmlFor="job-title" className="block text-sm font-medium">{language === "ar" ? "ما الوظيفة التي تستعد للمقابلة من أجلها؟" : "What role are you interviewing for?"}</label>
                 <input
                   id="job-title"
                   name="job-title"
-                  dir="auto"
+                  dir={language === "ar" ? "rtl" : "ltr"}
                   required
                   maxLength={120}
                   pattern={String.raw`.*\S.*`}
@@ -536,7 +536,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                   className={fieldClass + " text-start"}
                 />
               </div>
-              <div>
+              <div className="flex min-h-0 flex-col">
                 <label htmlFor="job-description" className="block text-sm font-medium">{language === "ar" ? "ما المهارات والمسؤوليات المطلوبة؟ (اختياري)" : "What skills and responsibilities are required? (Optional)"}</label>
                 <textarea
                   id="job-description"
@@ -544,7 +544,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                   value={jobDescriptionDraft}
                   readOnly={readingJobFile}
                   onChange={(event) => setJobDescriptionDraft(event.target.value)}
-                  dir="auto"
+                  dir={language === "ar" ? "rtl" : "ltr"}
                   rows={4}
                   maxLength={4000}
                   placeholder={language === 'ar' ? 'مثال: تطوير واجهات باستخدام React، العمل ضمن فريق، واختبار التطبيقات.' : 'Paste the job requirements to tailor interview questions'}
@@ -599,7 +599,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           )}
           <p className="mb-2 text-xs leading-relaxed text-muted-foreground lg:col-span-2">{language === "ar" ? "قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك." : "Your browser may send audio to a transcription service when the mic is on."}</p>
           <div className="flex flex-wrap gap-2 lg:col-span-2">
-            <Button className="bg-[#182D43] px-6 text-white hover:bg-[#315B82]" type="submit" disabled={readingJobFile || readingCvFile}>{isInterview ? (language === "ar" ? "ابدأ المقابلة" : "Start interview") : text.start}</Button>
+            <Button className="bg-primary px-6 text-white hover:bg-primary-hover" type="submit" disabled={readingJobFile || readingCvFile}>{isInterview ? (language === "ar" ? "ابدأ المقابلة" : "Start interview") : text.start}</Button>
             <Button type="button" variant="outline" onClick={onClose}>{text.cancel}</Button>
           </div>
         </form>
