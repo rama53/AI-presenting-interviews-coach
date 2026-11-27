@@ -375,5 +375,14 @@ def generate_interview_feedback(
             if i >= len(data.history):
                 report.interviewer_scores[i] = None
         return report
-    except (HTTPError, URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError) as error:
-        raise HTTPException(502, "AI feedback service unavailable") from error
+    except HTTPError as error:
+        print("Gemini feedback HTTP status:", error.code, flush=True)
+        raise HTTPException(502, "AI feedback provider rejected the request") from error
+    except (URLError, TimeoutError) as error:
+        print("Gemini feedback connection error:", type(error).__name__, flush=True)
+        raise HTTPException(502, "AI feedback connection failed") from error
+    except (ValueError, KeyError, IndexError, TypeError) as error:
+        print("Gemini feedback response validation error:", type(error).__name__, flush=True)
+        if hasattr(error, "errors"):
+            print([(e.get("loc"), e.get("type")) for e in error.errors()], flush=True)
+        raise HTTPException(502, "AI feedback response invalid") from error
