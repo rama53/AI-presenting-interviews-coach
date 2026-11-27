@@ -37,6 +37,9 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
   const [secondsLeft, setSecondsLeft] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const pausedAt = useRef(0)
   const [interview, setInterview] = useState<InterviewDetails | null>(null)
   const interviewText = text.interviewSetup
   const roomLabel = isInterview ? text.interviewPanel : text.audienceSize
@@ -57,7 +60,7 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
   }, [session.phase])
 
   useEffect(() => {
-    if (session.phase !== 'running') return
+    if (session.phase !== 'running' || paused) return
 
     function updateTime(deadline: number) {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
@@ -67,7 +70,20 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
 
     const timer = window.setInterval(updateTime, 250, session.deadline)
     return () => window.clearInterval(timer)
-  }, [session, finish])
+  }, [session, finish, paused])
+
+  function togglePause() {
+    if (session.phase !== 'running') return
+    if (paused) {
+      setSession({ ...session, deadline: session.deadline + Date.now() - pausedAt.current })
+      setPaused(false)
+      void videoRef.current?.play().catch(() => {})
+    } else {
+      pausedAt.current = Date.now()
+      setPaused(true)
+      videoRef.current?.pause()
+    }
+  }
 
   function startPractice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -95,6 +111,14 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
 
   return (
     <section id="practice-session" aria-labelledby="practice-session-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+      {session.phase === 'running' && !isInterview && (
+        <div className="relative mb-5 overflow-hidden rounded-xl bg-black">
+          <video ref={videoRef} autoPlay loop muted playsInline
+            className="aspect-video w-full object-contain"
+            src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/7c1e9fcb-ca5d-4151-b05d-abb0fb50ca64-video.mp4`}
+          />
+        </div>
+      )}
       <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-2xl font-semibold tracking-tight">
         {session.phase === 'finished' ? text.complete : session.phase === 'ready' ? practice.setup : practice.running}
       </h1>
@@ -214,7 +238,10 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
       ) : (
         <div className="mt-5 flex flex-wrap gap-2">
           {session.phase === 'running' && (
-            <Button type="button" onClick={finish}>{text.finish}</Button>
+            <>
+              {!isInterview && <Button type="button" variant="outline" onClick={togglePause}>{paused ? 'Resume / استئناف' : 'Pause / إيقاف مؤقت'}</Button>}
+              <Button type="button" onClick={finish}>{text.finish}</Button>
+            </>
           )}
           <Button type="button" variant={session.phase === 'finished' ? 'default' : 'outline'} onClick={onClose}>
             {session.phase === 'finished' ? text.back : text.cancel}
