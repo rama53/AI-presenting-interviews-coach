@@ -24,6 +24,19 @@ export const copy = {
     cancel: 'إلغاء التدريب',
     finish: 'إنهاء التدريب',
     back: 'العودة إلى خيارات التدريب',
+    interviewSetup: {
+      intro: 'حدّد نوع المقابلة وأضف تفاصيل الوظيفة اللي بتستعد إلها.',
+      type: 'نوع المقابلة',
+      personal: 'شخصية',
+      technical: 'تقنية',
+      jobTitle: 'المسمّى الوظيفي',
+      jobTitlePlaceholder: 'مثال: مطوّر واجهات أمامية',
+      jobDescription: 'وصف الوظيفة (اختياري)',
+      jobDescriptionPlaceholder: 'الصق وصف الوظيفة أو اكتب أهم المهام والمهارات المطلوبة.',
+      durationHint: 'من دقيقة واحدة إلى ٢٠ دقيقة.',
+      technicalPrompt: 'اختر مشكلة تقنية مرتبطة بهذه الوظيفة. اشرح كيف تحلّلها، وما الحل الذي تختاره، ولماذا.',
+      technicalCriteria: ['وضوح تحليل المشكلة، ومنطق اختيار الحل، وكيفية التحقق من نجاحه.'],
+    },
     modes: {
       presentation: {
         title: 'عرض تقديمي',
@@ -67,6 +80,19 @@ export const copy = {
     cancel: 'Cancel practice',
     finish: 'Finish practice',
     back: 'Back to practice options',
+    interviewSetup: {
+      intro: 'Choose the interview type and tell us about the role you’re preparing for.',
+      type: 'Interview type',
+      personal: 'Personal',
+      technical: 'Technical',
+      jobTitle: 'Job title',
+      jobTitlePlaceholder: 'Example: Frontend developer',
+      jobDescription: 'Job description (optional)',
+      jobDescriptionPlaceholder: 'Paste the job description or add the key responsibilities and skills.',
+      durationHint: 'Between 1 and 20 minutes.',
+      technicalPrompt: 'Choose a technical problem relevant to this role. Explain how you would analyze it, which solution you would choose, and why.',
+      technicalCriteria: ['Clarity of the problem analysis, reasoning behind the solution, and how you would verify it works.'],
+    },
     modes: {
       presentation: {
         title: 'Presentation',

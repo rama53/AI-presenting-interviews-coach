@@ -5,18 +5,21 @@ const storageKey = 'speakwell.recent-sessions'
 const sessionLimit = 5
 
 export type PracticeId = 'presentation' | 'interview'
+export type InterviewType = 'personal' | 'technical'
 
 export type SessionRecord = {
   id: string
   practice: PracticeId
   completedAt: string
+  interviewType?: InterviewType
 }
 
 function isSessionRecord(value: unknown): value is SessionRecord {
   if (!value || typeof value !== 'object') return false
-  const { id, practice, completedAt } = value as Partial<SessionRecord>
+  const { id, practice, completedAt, interviewType } = value as Partial<SessionRecord>
   return typeof id === 'string'
     && (practice === 'presentation' || practice === 'interview')
+    && (interviewType === undefined || (practice === 'interview' && (interviewType === 'personal' || interviewType === 'technical')))
     && typeof completedAt === 'string'
     && Number.isFinite(Date.parse(completedAt))
 }
@@ -30,8 +33,8 @@ export function readSessions(): SessionRecord[] {
   }
 }
 
-export function saveSession(practice: PracticeId, current: SessionRecord[]): SessionRecord[] {
-  const record = { id: crypto.randomUUID(), practice, completedAt: new Date().toISOString() }
+export function saveSession(practice: PracticeId, current: SessionRecord[], interviewType?: InterviewType): SessionRecord[] {
+  const record = { id: crypto.randomUUID(), practice, interviewType, completedAt: new Date().toISOString() }
   try {
     const previous = localStorage.getItem(storageKey) === null ? current : readSessions()
     const recent = [record, ...previous].slice(0, sessionLimit)
@@ -56,19 +59,21 @@ export function RecentSessions({ sessions, text, language }: {
         <ul className="mt-3 divide-y divide-border">
           {sessions.map((session) => {
             const option = text.modes[session.practice]
+            const interviewType = session.interviewType
+            const isTechnical = interviewType === 'technical'
 
             return (
               <li key={session.id} className="py-2">
                 <details>
                   <summary className="cursor-pointer rounded py-1 text-sm font-medium">
-                    {option.title}{' '}
+                    {option.title}{interviewType && ` · ${text.interviewSetup[interviewType]}`}{' '}
                     <time dateTime={session.completedAt} className="ms-2 font-normal text-muted-foreground">
                       {new Date(session.completedAt).toLocaleDateString(language, { dateStyle: 'medium' })}
                     </time>
                   </summary>
                   <div className="space-y-2 px-4 pb-2 pt-1 text-sm leading-relaxed text-muted-foreground">
-                    <p>{option.prompt}</p>
-                    <AssessmentCriteria title={text.assessment} criteria={option.criteria} />
+                    <p>{isTechnical ? text.interviewSetup.technicalPrompt : option.prompt}</p>
+                    <AssessmentCriteria title={text.assessment} criteria={isTechnical ? text.interviewSetup.technicalCriteria : option.criteria} />
                   </div>
                 </details>
               </li>

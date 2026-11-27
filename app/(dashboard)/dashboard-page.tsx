@@ -11,7 +11,7 @@ import taleeqVerses from './taleeq-verses.png'
 
 const practiceOptions = [
   { id: 'presentation', defaultMinutes: 3, icon: AudioLines },
-  { id: 'interview', defaultMinutes: 2, icon: MessageSquareText },
+  { id: 'interview', defaultMinutes: 10, icon: MessageSquareText },
 ] as const
 
 const languageKey = 'speakwell.language'
@@ -63,8 +63,9 @@ export function DashboardPage() {
         <PracticeSession
           practice={{ ...text.modes[selectedPractice.id], defaultMinutes: selectedPractice.defaultMinutes }}
           text={text}
+          isInterview={selectedPractice.id === 'interview'}
           onClose={() => setSelectedPractice(null)}
-          onComplete={() => setSessions(saveSession(selectedPractice.id, sessions))}
+          onComplete={(interviewType) => setSessions(saveSession(selectedPractice.id, sessions, interviewType))}
         />
       </main>
     )
