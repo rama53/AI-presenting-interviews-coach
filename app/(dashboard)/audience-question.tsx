@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { audienceAnswerTip } from '@/lib/transcript-analysis'
 import { Button } from '@/components/ui/button'
 import type { Language } from './copy'
@@ -20,10 +20,16 @@ export function AudienceQuestion({ question, language, onClose }: {
   const [seconds, setSeconds] = useState(answerSeconds)
   const [finished, setFinished] = useState(false)
   const [audioUnavailable, setAudioUnavailable] = useState(false)
+  const dialog = useRef<HTMLDialogElement>(null)
   const speaking = 'speechSynthesis' in globalThis
 
-  useEffect(() => () => {
-    globalThis.speechSynthesis?.cancel()
+  useEffect(() => {
+    const room = dialog.current
+    room?.showModal()
+    return () => {
+      room?.close()
+      globalThis.speechSynthesis?.cancel()
+    }
   }, [])
 
   useEffect(() => {
@@ -56,7 +62,15 @@ export function AudienceQuestion({ question, language, onClose }: {
 
   const active = deadline !== null && !finished
   return (
-    <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label={ar ? 'تحدّي الجمهور' : 'Audience challenge'}>
+    <dialog
+      ref={dialog}
+      onCancel={(event) => {
+        event.preventDefault()
+        onClose()
+      }}
+      className="fixed inset-0 m-auto max-h-[85dvh] w-[min(92vw,34rem)] space-y-3 overflow-auto rounded-xl border border-border bg-card p-5 text-foreground backdrop:bg-black/60"
+      aria-label={ar ? 'تحدّي الجمهور' : 'Audience challenge'}
+    >
       <h3 className="font-semibold">{ar ? 'سؤال من الجمهور' : 'Audience question'}</h3>
       <p>{question}</p>
       {deadline === null && (
@@ -94,7 +108,7 @@ export function AudienceQuestion({ question, language, onClose }: {
           {finished && <p role="status">{audienceAnswerTip(speech.transcript, language)}</p>}
         </>
       )}
-      <Button type="button" variant="outline" onClick={onClose}>{ar ? 'إغلاق التحدّي' : 'Close challenge'}</Button>
-    </section>
+      <Button type="button" variant="outline" onClick={onClose}>{ar ? 'الرجوع للعرض' : 'Resume presentation'}</Button>
+    </dialog>
   )
 }

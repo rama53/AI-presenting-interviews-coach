@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { analyzeTranscript, buildAudienceQuestion, comparePresentations, type AnalysisMode } from '@/lib/transcript-analysis'
-import { AudienceQuestion } from './audience-question'
+import { analyzeTranscript, comparePresentations, type AnalysisMode } from '@/lib/transcript-analysis'
 import { usePracticeTranscript } from './use-practice-transcript'
 import type { Language } from './copy'
 
@@ -63,7 +62,6 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
   const retrySpeech = usePracticeTranscript(language)
   const { transcript: draft, setTranscript: setDraft } = retrySpeech
   const [retryStarted, setRetryStarted] = useState(false)
-  const [audienceQuestion, setAudienceQuestion] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const { transcript, setTranscript, status, busy, startMicrophone, stopMicrophone } = speech
@@ -106,7 +104,7 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
       )}
       {firstVersion !== null && (
         <>
-          <Button type="button" variant="outline" disabled={retrySpeech.status === 'stopping' || audienceQuestion !== null} onClick={() => {
+          <Button type="button" variant="outline" disabled={retrySpeech.status === 'stopping'} onClick={() => {
             if (retrySpeech.busy) retrySpeech.stopMicrophone()
             else {
               if (!retryStarted) {
@@ -165,11 +163,6 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
               <ul className="list-disc ps-5">{(comparison.remaining.length ? comparison.remaining : [ar ? 'الموضوع والمثال موجودين. راجعي إذا المثال بدعم فكرتك.' : 'Topic and example cues are present. Check that the example supports your point.']).map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
           )}
-          {!running && mode === 'presentation' && audienceQuestion === null && (
-            <Button type="button" variant="outline" disabled={busy || retrySpeech.busy} onClick={() => setAudienceQuestion(buildAudienceQuestion(transcript, language))}>
-              {ar ? 'سؤال من الجمهور' : 'Audience question'}
-            </Button>
-          )}
           {!running && firstVersion === null && (
             <Button type="button" variant="outline" onClick={() => {
               setFirstVersion(transcript)
@@ -193,7 +186,6 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
           )}
         </div>
       )}
-      {audienceQuestion && <AudienceQuestion question={audienceQuestion} language={language} onClose={() => setAudienceQuestion(null)} />}
     </section>
   )
 }

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
+import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
+import { buildAudienceQuestion } from '@/lib/transcript-analysis'
+import { AudienceQuestion } from './audience-question'
 import { PracticeAnalysis } from './practice-analysis'
 import type { DashboardCopy, Language } from './copy'
 import type { InterviewType } from './recent-sessions'
@@ -42,6 +44,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
   const [secondsLeft, setSecondsLeft] = useState(0)
+  const [audienceQuestion, setAudienceQuestion] = useState<string | null>(null)
   const [paused, setPaused] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoError, setVideoError] = useState('')
@@ -229,10 +232,23 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
             <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
+            <button type="button" disabled={paused} onClick={() => {
+              setAudienceQuestion(buildAudienceQuestion(speech.transcript, language))
+              togglePause()
+            }} className="flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs hover:bg-white/10 disabled:opacity-50">
+              <MessageSquare size={21} />
+              <span>{ar ? 'سؤال من الجمهور' : 'Audience question'}</span>
+            </button>
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
           </div>
         </footer>
+        {audienceQuestion && (
+          <AudienceQuestion question={audienceQuestion} language={language} onClose={() => {
+            setAudienceQuestion(null)
+            togglePause()
+          }} />
+        )}
       </section>, document.body
     )
   }
