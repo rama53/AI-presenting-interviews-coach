@@ -197,7 +197,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     const file = fields.get('attachment')
     const settings = {
       attachment: file instanceof File && file.name ? file : null,
-      roomOption: Number(fields.get('room-option')),
+      roomOption: isInterview ? 2 : Number(fields.get('room-option')),
     }
     roomSettings.current = settings
     setSession({ phase: 'running', deadline: Date.now() + duration * 1000, ...settings })
@@ -394,10 +394,19 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             </div>
           )}
           <div className="mb-4">
-            <label htmlFor="room-option" className="block text-sm font-medium">{roomLabel}</label>
+            {isInterview ? (
+              <>
+                <span className="block text-sm font-medium">{roomLabel}</span>
+                <p className="mt-1.5 text-sm">{text.interviewPanelOptions[2]}</p>
+              </>
+            ) : (
+              <>
+                <label htmlFor="room-option" className="block text-sm font-medium">{roomLabel}</label>
             <select id="room-option" name="room-option" defaultValue={0} className={fieldClass}>
               {roomOptions.map((label, index) => <option key={index} value={index}>{label}</option>)}
             </select>
+              </>
+            )}
           </div>
           <div className="mb-4">
             <label htmlFor="session-minutes" className="block text-sm font-medium">{text.duration}</label>
