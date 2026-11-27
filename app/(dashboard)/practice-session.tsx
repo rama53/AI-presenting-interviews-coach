@@ -25,7 +25,7 @@ const fieldClass = 'mt-1.5 block w-full rounded-lg border border-input bg-backgr
 
 type Session =
   | { phase: 'ready' }
-  | { phase: 'running'; deadline: number }
+  | { phase: 'running'; deadline: number; attachment: File | null }
   | { phase: 'finished' }
 
 export function PracticeSession({ practice, text, isInterview, onClose, onComplete }: {
@@ -79,7 +79,12 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
       })
     }
     setSecondsLeft(duration)
-    setSession({ phase: 'running', deadline: Date.now() + duration * 1000 })
+    const file = fields.get('attachment')
+    setSession({
+      phase: 'running',
+      deadline: Date.now() + duration * 1000,
+      attachment: file instanceof File && file.name ? file : null,
+    })
   }
 
   const minutes = Math.floor(secondsLeft / 60)
@@ -94,15 +99,22 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
         <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={isTechnical ? interviewText.technicalCriteria : practice.criteria} /></div>
       ) : (
         <>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {session.phase === 'ready' && isInterview ? interviewText.intro : isTechnical ? interviewText.technicalPrompt : practice.prompt}
-          </p>
+          {(session.phase === 'running' || isInterview) && (
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {session.phase === 'ready' ? interviewText.intro : isTechnical ? interviewText.technicalPrompt : practice.prompt}
+            </p>
+          )}
           {session.phase === 'running' && interview && (
             <div className="mt-4 rounded-lg border border-border bg-background p-3 text-sm">
               <p className="font-semibold wrap-anywhere" dir="auto">{interview.jobTitle}</p>
               <p className="text-muted-foreground">{interviewText[interview.type]}</p>
               {interview.jobDescription && <p className="mt-2 whitespace-pre-wrap wrap-anywhere text-muted-foreground" dir="auto">{interview.jobDescription}</p>}
             </div>
+          )}
+          {session.phase === 'running' && session.attachment && (
+            <p className="mt-3 wrap-anywhere text-sm text-muted-foreground">
+              {text.attachedFile}: <bdi className="font-medium text-foreground">{session.attachment.name}</bdi>
+            </p>
           )}
           {session.phase === 'running' && (
             <p role="timer" aria-label={text.remaining} className="mt-4 text-3xl font-semibold tabular-nums">
@@ -167,6 +179,18 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
               className="mt-1.5 w-24 rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-ring"
             />
             {isInterview && <p id="interview-duration-hint" className="mt-1 text-xs text-muted-foreground">{interviewText.durationHint}</p>}
+          </div>
+          <div className="mb-5">
+            <label htmlFor="session-attachment" className="block text-sm font-medium">
+              {isInterview ? text.cvFile : text.presentationFile}
+            </label>
+            <input
+              id="session-attachment"
+              name="attachment"
+              type="file"
+              accept={isInterview ? '.pdf,.doc,.docx' : '.pdf,.ppt,.pptx,.doc,.docx'}
+              className={`${fieldClass} file:me-3 file:rounded-md file:border-0 file:bg-primary-soft file:px-2 file:py-1 file:font-medium file:text-primary`}
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="submit">{text.start}</Button>
