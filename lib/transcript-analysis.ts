@@ -136,3 +136,45 @@ export function audienceAnswerTip(answer: string, language: Language) {
   return hasExample ? 'You introduced an example. Check that it answers the question directly.' : 'Try adding a concrete example after your opening sentence.'
 }
 
+
+const interviewPrompts = {
+  ar: {
+    personal: [
+      'احكي عن موقف اختلفتِ فيه مع زميل. كيف تعاملتِ معه؟',
+      'كيف رتّبتي أولوياتك لما كان عندك أكثر من مهمة مستعجلة؟',
+      'شو ملاحظة أخذتيها وغيّرت طريقة شغلك بسببها؟',
+      'لو رجعتي لنفس الموقف، شو بتعملي بطريقة مختلفة؟',
+    ],
+    technical: [
+      'لو الحل لازم يخدم عدد مستخدمين أكبر، شو أول شي رح تراقبيه؟',
+      'احكي عن خطأ صعب تتبعتيه. شو كانت أول فرضية وكيف اختبرتيها؟',
+      'شو البديل اللي فكرتِ فيه، وكيف قارنتِ بينه وبين الحل اللي اخترتيه؟',
+      'شو الاختبار اللي رح تكتبيه عشان تتأكدي إن المشكلة ما بتتكرر؟',
+    ],
+  },
+  en: {
+    personal: [
+      'Tell me about a disagreement with a teammate. How did you handle it?',
+      'How did you prioritize when several tasks were urgent?',
+      'What feedback changed the way you work?',
+      'What would you do differently if you faced the same situation again?',
+    ],
+    technical: [
+      'If your solution had to serve more users, what would you monitor first?',
+      'Tell me about a hard-to-trace bug. What did you suspect first, and how did you test it?',
+      'What alternative did you consider, and how did you evaluate the trade-off?',
+      'What test would you write to prevent this issue from recurring?',
+    ],
+  },
+}
+
+export function nextInterviewQuestion(
+  transcript: string,
+  language: Language,
+  mode: 'personal' | 'technical',
+  asked: readonly string[],
+) {
+  const followUp = analyzeTranscript({ transcript, language, mode })?.followUp
+  if (followUp && !asked.includes(followUp)) return followUp
+  return interviewPrompts[language][mode].find((question) => !asked.includes(question)) ?? null
+}

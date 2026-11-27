@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
-import { buildAudienceQuestion } from '@/lib/transcript-analysis'
+import { buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
 import { AudienceQuestion } from './audience-question'
 import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
 import { emptyCameraSamples, type CameraSamples } from '@/lib/camera-feedback'
@@ -70,11 +70,18 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const streams = useRef<Partial<Record<'camera', MediaStream>>>({})
   const pending = useRef(new Set<string>())
   const generation = useRef(0)
+  const [interviewTurns, setInterviewTurns] = useState<{ question: string; answer: string }[]>([])
+  const [interviewFollowUp, setInterviewFollowUp] = useState<string | null>(null)
+  const [interviewComplete, setInterviewComplete] = useState(false)
+  const [submittingInterviewAnswer, setSubmittingInterviewAnswer] = useState(false)
+  const [interviewTranscriptEdit, setInterviewTranscriptEdit] = useState<string | null>(null)
   const [interview, setInterview] = useState<InterviewDetails | null>(null)
   const interviewText = text.interviewSetup
   const roomLabel = isInterview ? text.interviewPanel : text.audienceSize
   const roomOptions = isInterview ? text.interviewPanelOptions : text.audienceOptions
   const isTechnical = interview?.type === 'technical'
+  const interviewQuestion = interviewFollowUp ?? (isTechnical ? interviewText.technicalPrompt : practice.prompt)
+  const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
 
@@ -165,6 +172,20 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     setPreparingQuestion(false)
   }, [preparingQuestion, paused, session.phase, speech.busy, speech.transcript, language, presentationTopic])
 
+  useEffect(() => {
+    if (!submittingInterviewAnswer || session.phase !== 'running' || speech.busy) return
+    setSubmittingInterviewAnswer(false)
+    const answer = speech.transcript.trim()
+    if (!answer) return
+
+    const turns = [...interviewTurns, { question: interviewQuestion, answer }]
+    const next = nextInterviewQuestion(answer, language, interview?.type ?? 'personal', turns.map(({ question }) => question))
+    setInterviewTurns(turns)
+    setInterviewFollowUp(next)
+    setInterviewComplete(next === null)
+    speech.setTranscript('')
+  }, [submittingInterviewAnswer, session.phase, speech.busy, speech.transcript, speech.setTranscript, interviewTurns, interviewQuestion, language, interview?.type])
+
   function togglePause() {
     if (session.phase !== 'running') return
     if (paused) {
@@ -227,7 +248,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const seconds = String(secondsLeft % 60).padStart(2, '0')
 
   if (session.phase === 'running') {
-    const ar = /[\u0600-\u06ff]/.test(practice.running)
+    const ar = language === 'ar'
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
         {isInterview ? (
@@ -267,14 +288,35 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
         <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
           {speech.status === 'unavailable' || speech.status === 'error'
-            ? (ar ? 'التفريغ غير متاح. اكتبي النص بعد إنهاء التدريب.' : 'Transcription unavailable. Type your transcript after ending practice.')
+            ? (ar ? 'التفريغ غير متاح. بإمكانك تكتبي جوابك.' : 'Transcription unavailable. You can type your answer.')
             : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
-        {isInterview && <div className="absolute inset-x-4 bottom-32 mx-auto max-w-2xl rounded-2xl border border-white/20 bg-[#142332]/95 p-4 text-center shadow-xl"><p className="mb-1 text-xs text-amber-200">{isTechnical ? (ar ? "المحاور التقني" : "Technical interviewer") : (ar ? "محاور الموارد البشرية" : "HR interviewer")}</p><p className="text-base font-medium">{isTechnical ? interviewText.technicalPrompt : practice.prompt}</p></div>}
+        {isInterview && (
+          <section className="absolute inset-x-4 bottom-36 mx-auto max-h-[calc(100dvh-13rem)] max-w-2xl space-y-2 overflow-auto rounded-2xl border border-white/20 bg-[#142332]/95 p-3 shadow-xl sm:bottom-32 sm:p-4">
+            {interviewComplete ? (
+              <p role="status">{ar ? 'خلصت أسئلة هالمقابلة. اضغطي «إنهاء التدريب» حتى تشوفي إجاباتك.' : 'All questions are complete. End the session to review your answers.'}</p>
+            ) : (
+              <>
+                <p className="text-xs text-amber-200">{ar ? 'السؤال' : 'Question'} {interviewTurns.length + 1} · {isTechnical ? (ar ? 'المحاور التقني' : 'Technical interviewer') : (ar ? 'محاور الموارد البشرية' : 'HR interviewer')}</p>
+                <p aria-live="polite" className="font-medium">{interviewQuestion}</p>
+                <label className="block text-sm">
+                  {ar ? 'جوابك' : 'Your answer'}
+                  <textarea className="mt-1 block w-full resize-y rounded-lg border border-white/25 bg-black/35 p-2" rows={2} dir="auto" value={speech.transcript} readOnly={submittingInterviewAnswer} onChange={(event) => speech.setTranscript(event.target.value)} />
+                </label>
+                <button type="button" disabled={paused || submittingInterviewAnswer || (!speech.busy && !speech.transcript.trim())} onClick={() => {
+                  setSubmittingInterviewAnswer(true)
+                  stopMicrophone()
+                }} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#142332] disabled:opacity-50">
+                  {submittingInterviewAnswer ? (ar ? 'جاري تجهيز السؤال…' : 'Preparing the next question…') : (ar ? 'إرسال الجواب والسؤال التالي' : 'Submit answer and continue')}
+                </button>
+              </>
+            )}
+          </section>
+        )}
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
-              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy) speech.startMicrophone() } },
+              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy && !submittingInterviewAnswer && !interviewComplete) speech.startMicrophone() } },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               ...(!isInterview ? [{ label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) }] : []),
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: () => { setPreparingQuestion(false); togglePause() } },
@@ -315,9 +357,23 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
       ) : isInterview ? (
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>
       ) : null}
+      {session.phase === 'finished' && isInterview && interviewTurns.length > 0 && (
+        <details className="mt-5 rounded-xl border border-border p-4">
+          <summary className="cursor-pointer font-semibold">{language === 'ar' ? 'أسئلة المقابلة وإجاباتك' : 'Interview questions and answers'}</summary>
+          <ol className="mt-3 list-decimal space-y-3 ps-5">
+            {interviewTurns.map(({ question, answer }) => (
+              <li key={question}><p className="font-medium">{question}</p><p dir="auto" className="whitespace-pre-wrap">{answer}</p></li>
+            ))}
+          </ol>
+        </details>
+      )}
       {session.phase === 'finished' && !isInterview && <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />}
       {session.phase !== 'ready' && (
-        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={false} />
+        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? {
+          ...speech,
+          transcript: interviewReportTranscript,
+          setTranscript: (value) => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value),
+        } : speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={false} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
