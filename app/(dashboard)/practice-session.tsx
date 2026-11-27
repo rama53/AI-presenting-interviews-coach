@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation, MessageSquare, Hand } from 'lucide-react'
+import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
-import { buildAudienceQuestion, invitesAudienceQuestions } from '@/lib/transcript-analysis'
+import { buildAudienceQuestion } from '@/lib/transcript-analysis'
 import { AudienceQuestion } from './audience-question'
 import { PracticeAnalysis } from './practice-analysis'
 import type { DashboardCopy, Language } from './copy'
@@ -46,10 +46,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const [previousAttempt, setPreviousAttempt] = useState<string | null>(null)
   const roomSettings = useRef<{ attachment: File | null; roomOption: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
-  const [handRaised, setHandRaised] = useState(false)
   const startedWithSeconds = useRef(0)
-  const timedHandShown = useRef(false)
-  const invitedHandShown = useRef(false)
   const [audienceQuestion, setAudienceQuestion] = useState<ReturnType<typeof buildAudienceQuestion> | null>(null)
   const [paused, setPaused] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -156,28 +153,6 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     finally { pending.current.delete(kind) }
   }
 
-  useEffect(() => {
-    if (isInterview || session.phase !== 'running' || paused || handRaised) return
-
-    if (!invitedHandShown.current && invitesAudienceQuestions(speech.transcript)) {
-      invitedHandShown.current = true
-      timedHandShown.current = true
-      setHandRaised(true)
-      return
-    }
-
-    if (!timedHandShown.current && startedWithSeconds.current - secondsLeft >= 45 && secondsLeft > 10) {
-      timedHandShown.current = true
-      setHandRaised(true)
-    }
-  }, [isInterview, session.phase, paused, handRaised, speech.transcript, secondsLeft])
-
-  function openAudienceQuestion() {
-    setHandRaised(false)
-    setAudienceQuestion(buildAudienceQuestion(speech.transcript, language))
-    togglePause()
-  }
-
   function togglePause() {
     if (session.phase !== 'running') return
     if (paused) {
@@ -221,9 +196,6 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     setPreviousAttempt(speech.transcript)
     speech.setTranscript('')
     completed.current = false
-    timedHandShown.current = false
-    invitedHandShown.current = false
-    setHandRaised(false)
     setAudienceQuestion(null)
     setPaused(false)
     setSlides(false)
@@ -273,22 +245,6 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             ? (ar ? 'التفريغ غير متاح. اكتبي النص بعد إنهاء التدريب.' : 'Transcription unavailable. Type your transcript after ending practice.')
             : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
-        {handRaised && (
-          <aside className="absolute end-4 bottom-36 w-[min(90vw,21rem)] rounded-xl border border-white/25 bg-[#142332]/95 p-4 shadow-xl sm:end-7">
-            <p role="status" className="flex items-center gap-2 font-semibold">
-              <Hand size={22} className="text-amber-300" aria-hidden="true" />
-              {ar ? 'أحد من الجمهور رفع إيده' : 'Someone in the audience raised a hand'}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" disabled={paused} onClick={openAudienceQuestion} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#142332] disabled:opacity-50">
-                {ar ? 'خليه يسأل' : 'Take the question'}
-              </button>
-              <button type="button" onClick={() => setHandRaised(false)} className="rounded-lg px-3 py-2 text-sm hover:bg-white/15">
-                {ar ? 'كمّلي العرض' : 'Keep presenting'}
-              </button>
-            </div>
-          </aside>
-        )}
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
@@ -298,9 +254,11 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
             <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
-            <button type="button" disabled={paused} onClick={openAudienceQuestion} className="flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs hover:bg-white/10 disabled:opacity-50">
-              <MessageSquare size={21} />
-              <span>{ar ? 'سؤال من الجمهور' : 'Audience question'}</span>
+            <button type="button" disabled={paused} onClick={() => {
+              setAudienceQuestion(buildAudienceQuestion(speech.transcript, language))
+              togglePause()
+            }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
+              {ar ? 'انتهيت' : 'I’m done'}
             </button>
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
@@ -310,6 +268,9 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           <AudienceQuestion question={audienceQuestion} language={language} onClose={() => {
             setAudienceQuestion(null)
             togglePause()
+          }} onFinish={() => {
+            setAudienceQuestion(null)
+            finish()
           }} />
         )}
       </section>, document.body

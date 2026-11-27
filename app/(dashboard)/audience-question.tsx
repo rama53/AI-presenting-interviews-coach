@@ -8,10 +8,11 @@ import { usePracticeTranscript } from './use-practice-transcript'
 
 const answerSeconds = 30
 
-export function AudienceQuestion({ question, language, onClose }: {
+export function AudienceQuestion({ question, language, onClose, onFinish }: {
   question: ReturnType<typeof buildAudienceQuestion>
   language: Language
   onClose: () => void
+  onFinish: () => void
 }) {
   const ar = language === 'ar'
   const speech = usePracticeTranscript(language)
@@ -25,8 +26,11 @@ export function AudienceQuestion({ question, language, onClose }: {
 
   useEffect(() => {
     const room = dialog.current
+    const player = audio.current
     room?.showModal()
+    void player?.play().catch(() => {})
     return () => {
+      player?.pause()
       room?.close()
     }
   }, [])
@@ -104,7 +108,8 @@ export function AudienceQuestion({ question, language, onClose }: {
           {finished && <p role="status">{audienceAnswerTip(speech.transcript, language)}</p>}
         </>
       )}
-      <Button type="button" variant="outline" onClick={onClose}>{ar ? 'الرجوع للعرض' : 'Resume presentation'}</Button>
+      {finished && <Button type="button" onClick={onFinish}>{ar ? 'إنهاء التدريب' : 'End practice'}</Button>}
+      <Button type="button" variant="outline" onClick={onClose}>{ar ? 'الرجوع للعرض' : 'Back to presentation'}</Button>
     </dialog>
   )
 }

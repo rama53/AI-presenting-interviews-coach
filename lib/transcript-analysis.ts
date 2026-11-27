@@ -99,9 +99,9 @@ export function comparePresentations(first: string, revised: string, language: L
 
 const audiencePrompts = {
   ar: [
-    { text: 'لو بدك تلخّصي موضوعك للجمهور بجملة واحدة، شو بتحكي؟', audio: 'ar-0.mp3' },
-    { text: 'كيف ممكن نطبّق الفكرة اللي حكيتي عنها بحياتنا اليومية؟', audio: 'ar-1.mp3' },
-    { text: 'كيف ممكن نطبّق الفكرة اللي شرحتيها بموقف مختلف؟', audio: 'ar-2.mp3' },
+    { text: 'هل يمكنك تلخيص موضوع العرض في جملة واحدة؟', audio: 'ar-clear-0.mp3' },
+    { text: 'كيف يمكننا تطبيق هذه الفكرة في حياتنا اليومية؟', audio: 'ar-clear-1.mp3' },
+    { text: 'هل يمكنك إعطاء مثال آخر على هذه الفكرة؟', audio: 'ar-clear-2.mp3' },
   ],
   en: [
     { text: 'How would you sum up your topic for the audience in one sentence?', audio: 'en-0.mp3' },
@@ -125,7 +125,3 @@ export function audienceAnswerTip(answer: string, language: Language) {
   return hasExample ? 'You introduced an example. Check that it answers the question directly.' : 'Try adding a concrete example after your opening sentence.'
 }
 
-export function invitesAudienceQuestions(transcript: string) {
-  const clean = transcript.normalize('NFD').replace(/\p{M}/gu, '').replace(/[؟?!.،,]/g, ' ').replace(/\s+/g, ' ')
-  return /(?:في (?:اي )?(?:اس[ئي]لة|استفسار)|(?:حد|احد|حدا) (?:عنده|بده|حاب|حابب) (?:يسال|يستفسر|سوال|استفسار)|(?:عندكم|عندكن) (?:اي )?(?:اس[ئي]لة|سوال|استفسار)|باب الاس[ئي]لة|any questions|anyone (?:have|has|want to ask) (?:a question|any questions)|questions from the audience)/iu.test(clean)
-}
