@@ -173,8 +173,13 @@ export function nextInterviewQuestion(
   language: Language,
   mode: 'personal' | 'technical',
   asked: readonly string[],
+  jobQuestions: readonly string[] = [],
 ) {
-  const followUp = analyzeTranscript({ transcript, language, mode })?.followUp
+  const result = analyzeTranscript({ transcript, language, mode })
+  const followUp = result?.followUp
+  const nextJobQuestion = jobQuestions.find((question) => !asked.includes(question))
+  if (result?.evidence && followUp && !asked.includes(followUp)) return followUp
+  if (nextJobQuestion) return nextJobQuestion
   if (followUp && !asked.includes(followUp)) return followUp
   return interviewPrompts[language][mode].find((question) => !asked.includes(question)) ?? null
 }

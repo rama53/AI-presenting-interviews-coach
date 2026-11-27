@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
+import { questionsFromJobDescription } from '@/lib/job-interview'
 import { buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
 import { AudienceQuestion } from './audience-question'
 import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
@@ -80,7 +81,11 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const roomLabel = isInterview ? text.interviewPanel : text.audienceSize
   const roomOptions = isInterview ? text.interviewPanelOptions : text.audienceOptions
   const isTechnical = interview?.type === 'technical'
-  const interviewQuestion = interviewFollowUp ?? (isTechnical ? interviewText.technicalPrompt : practice.prompt)
+  const jobQuestions = useMemo(
+    () => questionsFromJobDescription(interview?.jobDescription ?? '', language, interview?.type ?? 'personal'),
+    [interview, language],
+  )
+  const interviewQuestion = interviewFollowUp ?? jobQuestions[0] ?? (isTechnical ? interviewText.technicalPrompt : practice.prompt)
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
@@ -179,12 +184,12 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     if (!answer) return
 
     const turns = [...interviewTurns, { question: interviewQuestion, answer }]
-    const next = nextInterviewQuestion(answer, language, interview?.type ?? 'personal', turns.map(({ question }) => question))
+    const next = nextInterviewQuestion(answer, language, interview?.type ?? 'personal', turns.map(({ question }) => question), jobQuestions)
     setInterviewTurns(turns)
     setInterviewFollowUp(next)
     setInterviewComplete(next === null)
     speech.setTranscript('')
-  }, [submittingInterviewAnswer, session.phase, speech.busy, speech.transcript, speech.setTranscript, interviewTurns, interviewQuestion, language, interview?.type])
+  }, [submittingInterviewAnswer, session.phase, speech.busy, speech.transcript, speech.setTranscript, interviewTurns, interviewQuestion, language, interview?.type, jobQuestions])
 
   function togglePause() {
     if (session.phase !== 'running') return
@@ -417,7 +422,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                   dir="auto"
                   rows={4}
                   maxLength={4000}
-                  placeholder={interviewText.jobDescriptionPlaceholder}
+                  placeholder={language === 'ar' ? 'الصقي متطلبات الإعلان هون عشان تتخصّص الأسئلة' : 'Paste the job requirements to tailor interview questions'}
                   className={fieldClass}
                 />
               </div>
