@@ -182,7 +182,7 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
         <video ref={videoRef} autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover object-center"
-          src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/7c1e9fcb-ca5d-4151-b05d-abb0fb50ca64-video.mp4`} />
+          src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-v2.mp4.mp4`} />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/75 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/75 to-transparent" />
         <header className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4 sm:p-7">
