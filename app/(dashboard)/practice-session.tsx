@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
 import { questionsFromJobDescription } from '@/lib/job-interview'
 import { analyzeTranscript, buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
+import { PresentationAIReview, presentationAIAvailable, requestPresentationAI } from './presentation-ai-review'
 import { PresentationFeedback, PresentationVoiceMonitor } from './presentation-feedback'
 import { questionFromSlides, type VoiceSamples } from '@/lib/presentation-feedback'
 import { AudienceQuestion } from './audience-question'
@@ -60,6 +61,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const roomSettings = useRef<{ attachment: File | null; roomOption: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const startedWithSeconds = useRef(0)
+  const [usePresentationAI, setUsePresentationAI] = useState(false)
   const [preparingQuestion, setPreparingQuestion] = useState(false)
   const [audienceQuestion, setAudienceQuestion] = useState<{ text: string; audio: string | null } | null>(null)
   const [paused, setPaused] = useState(false)
@@ -336,9 +338,25 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
 
   useEffect(() => {
     if (!preparingQuestion || !paused || session.phase !== 'running' || speech.busy || slideStatus === 'loading') return
-    setAudienceQuestion(questionFromSlides(speech.transcript, slideTexts, language) ?? buildAudienceQuestion(speech.transcript, language, presentationTopic))
-    setPreparingQuestion(false)
-  }, [preparingQuestion, paused, session.phase, speech.busy, speech.transcript, language, presentationTopic, slideStatus, slideTexts])
+    const fallback = questionFromSlides(speech.transcript, slideTexts, language) ?? buildAudienceQuestion(speech.transcript, language, presentationTopic)
+    const controller = new AbortController()
+    async function openQuestion() {
+      let question = fallback
+      if (usePresentationAI && presentationAIAvailable && (speech.transcript.trim() || slideTexts.some((slide) => slide.trim()))) {
+        try {
+          const result = await requestPresentationAI({ transcript: speech.transcript, slides: slideTexts, topic: presentationTopic, language }, 'question', accessToken, controller.signal)
+          if (typeof result.question === 'string' && result.question.trim()) question = { text: result.question, audio: null }
+        } catch {
+          // The prepared question remains available if the service fails.
+        }
+      }
+      if (controller.signal.aborted) return
+      setAudienceQuestion(question)
+      setPreparingQuestion(false)
+    }
+    void openQuestion()
+    return () => controller.abort()
+  }, [preparingQuestion, paused, session.phase, speech.busy, speech.transcript, language, presentationTopic, slideStatus, slideTexts, accessToken, usePresentationAI])
 
   useEffect(() => {
     if (!submittingInterviewAnswer || session.phase !== 'running' || speech.busy) return
@@ -629,6 +647,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             {!overall && <p className="mt-3 text-sm">{ar ? 'لا يوجد نص كافٍ للتحليل.' : 'Not enough transcript for analysis.'}</p>}
             <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />
             {!isInterview && <PresentationFeedback transcript={transcript} slides={slideTexts} voice={voiceSamples.current} language={language} />}
+            {!isInterview && <PresentationAIReview key={transcript} source={{ transcript, slides: slideTexts, topic: presentationTopic, language }} token={accessToken} />}
           </div>
           {isInterview && <><h2 className="text-xl font-bold">{ar ? 'مراجعة الأسئلة والإجابات' : 'Question and answer review'}</h2>
           {reviews.map((r, i) => <details key={i} open={i === 0} className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold"><span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>{r.question}</summary><div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm"><p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p><p dir="auto" className="whitespace-pre-wrap">{r.answer}</p>{r.result && <>{r.result.evidence && <div className="rounded-lg bg-[#D9F3E5] p-3"><h3 className="font-semibold text-[#35664F]">{ar ? 'من كلامك' : 'Evidence from your answer'}</h3><p>{r.result.evidence}</p></div>}<div className="rounded-lg bg-[#FFE5C8] p-3"><h3 className="font-semibold text-[#985321]">{ar ? 'فرصة للتحسين' : 'Opportunity to improve'}</h3><p>{r.result.note}</p></div><div className="rounded-lg bg-[#E8DFFF] p-3"><h3 className="font-semibold text-[#66518E]">{ar ? 'قالب للتدريب' : 'Practice template'}</h3><p>{r.result.retry}</p></div></>}</div></details>)}</>}
@@ -649,6 +668,12 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             <label className="mb-4 block text-sm font-medium">
               {language === 'ar' ? 'موضوع العرض (اختياري)' : 'Presentation topic (optional)'}
               <input name="presentation-topic" className={fieldClass} dir="auto" maxLength={160} />
+            </label>
+          )}
+          {!isInterview && presentationAIAvailable && (
+            <label className="mb-4 flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={usePresentationAI} onChange={(event) => setUsePresentationAI(event.target.checked)} />
+              {language === 'ar' ? 'ولّد سؤال الجمهور باستخدام Gemini. عند بدء الأسئلة، سيُرسل نص العرض والشرائح.' : 'Generate the audience question with Gemini. Starting Q&A sends the transcript and slide text.'}
             </label>
           )}
           {isInterview && (
