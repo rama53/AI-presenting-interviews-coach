@@ -43,6 +43,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   onComplete: (interviewType?: InterviewType) => void
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
+  const [presentationTopic, setPresentationTopic] = useState('')
   const [previousAttempt, setPreviousAttempt] = useState<string | null>(null)
   const roomSettings = useRef<{ attachment: File | null; roomOption: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
@@ -180,6 +181,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     }
     startedWithSeconds.current = duration
     setSecondsLeft(duration)
+    if (!isInterview) setPresentationTopic(String(fields.get('presentation-topic') ?? '').trim())
     const file = fields.get('attachment')
     const settings = {
       attachment: file instanceof File && file.name ? file : null,
@@ -255,7 +257,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
             <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
             <button type="button" disabled={paused} onClick={() => {
-              setAudienceQuestion(buildAudienceQuestion(speech.transcript, language))
+              setAudienceQuestion(buildAudienceQuestion(speech.transcript, language, presentationTopic))
               togglePause()
             }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
               {ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions'}
@@ -316,10 +318,16 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         </>
       )}
       {session.phase !== 'ready' && (
-        <PracticeAnalysis previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
+        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
+          {!isInterview && (
+            <label className="mb-4 block text-sm font-medium">
+              {language === 'ar' ? 'موضوع العرض (اختياري)' : 'Presentation topic (optional)'}
+              <input name="presentation-topic" className={fieldClass} dir="auto" maxLength={160} />
+            </label>
+          )}
           {isInterview && (
             <div className="mb-5 grid gap-5">
               <fieldset>

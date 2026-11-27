@@ -51,11 +51,12 @@ const labels = {
   },
 }
 
-export function PracticeAnalysis({ language, mode, running, speech, previousAttempt }: {
+export function PracticeAnalysis({ language, mode, running, speech, previousAttempt, presentationTopic }: {
   language: Language
   mode: AnalysisMode
   running: boolean
   previousAttempt: string | null
+  presentationTopic: string
   speech: ReturnType<typeof usePracticeTranscript>
 }) {
   const text = labels[language]
@@ -66,14 +67,14 @@ export function PracticeAnalysis({ language, mode, running, speech, previousAtte
   const [saved, setSaved] = useState(false)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const { transcript, setTranscript, status, busy, startMicrophone, stopMicrophone } = speech
-  const result = showAnalysis || !running ? analyzeTranscript({ transcript, language, mode }) : null
+  const result = showAnalysis || !running ? analyzeTranscript({ transcript, language, mode, presentationTopic }) : null
 
-  const firstResult = firstVersion === null ? null : analyzeTranscript({ transcript: firstVersion, language, mode })
+  const firstResult = firstVersion === null ? null : analyzeTranscript({ transcript: firstVersion, language, mode, presentationTopic })
 
   const ar = language === 'ar'
   const baseline = saved && firstVersion !== null ? firstVersion : previousAttempt
   const comparison = baseline !== null && baseline.trim() && mode === 'presentation'
-    ? comparePresentations(baseline, transcript, language)
+    ? comparePresentations(baseline, transcript, language, presentationTopic)
     : null
 
   return (

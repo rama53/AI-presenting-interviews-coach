@@ -1,6 +1,6 @@
 export type AnalysisMode = 'personal' | 'technical' | 'presentation'
 type Language = 'ar' | 'en'
-type Input = { transcript: string; language: Language; mode: AnalysisMode }
+type Input = { transcript: string; language: Language; mode: AnalysisMode; presentationTopic?: string }
 type Feedback = readonly [question: string, note: string, retry: string]
 type Rule = { cue: RegExp; ar: Feedback; en: Feedback }
 
@@ -60,38 +60,49 @@ const fallback = {
 
 const topicCue = /(?:عن موضوع|رح نحكي عن|رح أحكي عن|today (?:we|i).{0,24} about)\s+(.+)/iu
 
-export function analyzeTranscript({ transcript, language, mode }: Input) {
+export function analyzeTranscript({ transcript, language, mode, presentationTopic = '' }: Input) {
   const words = transcript.match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}]*/gu) ?? []
   if (!words.length) return null
 
-  const rule = rules[mode].find(({ cue }) => cue.test(transcript))
+  const topicFromText = mode === 'presentation' && presentationSignals(transcript, presentationTopic).topic
+  const rule = mode === 'presentation'
+    ? rules.presentation[0].cue.test(transcript)
+      ? rules.presentation[0]
+      : !topicFromText && !presentationTopic && rules.presentation[1].cue.test(transcript) ? rules.presentation[1] : undefined
+    : rules[mode].find(({ cue }) => cue.test(transcript))
   const [followUp, note, retry] = (rule ?? fallback[mode])[language]
   const evidence = rule ? transcript.match(rule.cue)?.[0] : mode === 'presentation' ? transcript.match(topicCue)?.[0].slice(0, 96) : undefined
   return { wordCount: words.length, followUp, note, retry, evidence }
 }
 
 const exampleCue = /(?:مثلا|مثلًا|على سبيل المثال|كمثال|for example|for instance|such as)\s+[^.!?؟\n]+/iu
-const namedTopicCue = /(?:رح نحكي عن|رح أحكي عن|الموضوع هو|وهو عن|وهي عن|عن موضوع[^.!?؟\n]{0,60}\s+وه[وي](?:\s+عن)?|(?:the topic is|it['’]s about|today (?:we|i).{0,24} about))\s+(?!موضوع(?:\s|$)|(?:a|an) (?:very )?(?:interesting|important|great) topic)[^.!?؟\n]+/iu
+const namedTopicCue = /(?:رح نحكي عن|رح أحكي عن|حنحكي عن|حاحكي عن|عرضي عن|عرضنا عن|عرضي اليوم عن|موضوعي اليوم|بدي أحكي عن|خلّينا نحكي عن|presentation is about|present(?:ing)? on|الموضوع هو|وهو عن|وهي عن|عن موضوع[^.!?؟\n]{0,60}\s+وه[وي](?:\s+عن)?|(?:the topic is|it['’]s about|today (?:we|i).{0,24} about))\s+(?!موضوع(?:\s|$)|(?:a|an) (?:very )?(?:interesting|important|great) topic)[^.!?؟\n]+/iu
 
-function presentationSignals(transcript: string) {
+function normalizeTopic(text: string) {
+  return text.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+}
+
+function presentationSignals(transcript: string, presentationTopic = '') {
+  const topic = normalizeTopic(presentationTopic)
+  const mentionsTopic = topic !== '' && ` ${normalizeTopic(transcript)} `.includes(` ${topic} `)
   const explicitTopic = rules.presentation[0].cue.test(transcript)
   const vagueOpening = rules.presentation[1].cue.test(transcript)
   return {
-    topic: explicitTopic || (!vagueOpening && namedTopicCue.test(transcript)),
+    topic: mentionsTopic || explicitTopic || (!vagueOpening && namedTopicCue.test(transcript)),
     example: exampleCue.test(transcript),
   }
 }
 
-export function comparePresentations(first: string, revised: string, language: Language) {
-  const before = presentationSignals(first)
-  const now = presentationSignals(revised)
+export function comparePresentations(first: string, revised: string, language: Language, presentationTopic = '') {
+  const before = presentationSignals(first, presentationTopic)
+  const now = presentationSignals(revised, presentationTopic)
   const ar = language === 'ar'
   const improved = []
   const remaining = []
 
   if (now.topic && !before.topic) improved.push(ar ? 'سمّيتي موضوع العرض في المحاولة الجديدة.' : 'You named the topic in the new attempt.')
   if (now.example && !before.example) improved.push(ar ? 'أضفتِ عبارة تقدّم مثالًا.' : 'You added a phrase introducing an example.')
-  if (!now.topic) remaining.push(ar ? 'سمّي الموضوع بوضوح في المقدمة.' : 'Name the topic clearly in the opening.')
+  if (!now.topic) remaining.push(ar ? 'تأكدي إن الفكرة الرئيسية وصلت بوضوح.' : 'Check that the main idea comes across clearly.')
   if (!now.example) remaining.push(ar ? 'قدّمي مثالًا محددًا يدعم فكرتك.' : 'Introduce a specific example that supports your point.')
 
   return { improved, remaining }
@@ -110,9 +121,9 @@ const audiencePrompts = {
   ],
 }
 
-export function buildAudienceQuestion(transcript: string, language: Language) {
+export function buildAudienceQuestion(transcript: string, language: Language, presentationTopic = '') {
   const { topic, example } = presentationSignals(transcript)
-  return audiencePrompts[language][!topic ? 0 : example ? 2 : 1]
+  return audiencePrompts[language][example ? 2 : topic || presentationTopic.trim() ? 1 : 0]
 }
 
 export function audienceAnswerTip(answer: string, language: Language) {
