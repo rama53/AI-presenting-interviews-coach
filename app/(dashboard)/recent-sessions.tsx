@@ -1,3 +1,4 @@
+import { AudioLines, ChevronDown, Clock3, MessageSquareText } from 'lucide-react'
 import type { DashboardCopy, Language } from './copy'
 import { AssessmentCriteria } from './assessment-criteria'
 
@@ -52,28 +53,48 @@ export function RecentSessions({ sessions, text, language }: {
 }) {
   return (
     <section id="recent-sessions" aria-labelledby="recent-sessions-title" className="mt-7 scroll-mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
-      <h2 id="recent-sessions-title" className="text-lg font-semibold">{text.recent}</h2>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div>
+          <h2 id="recent-sessions-title" className="text-lg font-semibold">{text.recent}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{text.recentDescription}</p>
+        </div>
+        <span className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground sm:mt-0">
+          <Clock3 aria-hidden="true" className="size-3.5" />
+          {text.reportUnavailable}
+        </span>
+      </div>
       {sessions.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">{text.emptyHistory}</p>
+        <p className="mt-5 rounded-xl border border-dashed border-border bg-background px-4 py-5 text-sm leading-relaxed text-muted-foreground">{text.emptyHistory}</p>
       ) : (
-        <ul className="mt-3 divide-y divide-border">
+        <ul className="mt-4 flex flex-col gap-2.5">
           {sessions.map((session) => {
             const option = text.modes[session.practice]
             const interviewType = session.interviewType
             const isTechnical = interviewType === 'technical'
+            const Icon = session.practice === 'presentation' ? AudioLines : MessageSquareText
 
             return (
-              <li key={session.id} className="py-2">
-                <details>
-                  <summary className="cursor-pointer rounded py-1 text-sm font-medium">
-                    {option.title}{interviewType && ` · ${text.interviewSetup[interviewType]}`}{' '}
-                    <time dateTime={session.completedAt} className="ms-2 font-normal text-muted-foreground">
-                      {new Date(session.completedAt).toLocaleDateString(language, { dateStyle: 'medium' })}
-                    </time>
+              <li key={session.id}>
+                <details className="group rounded-xl border border-border bg-background open:bg-card">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl p-3.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:p-4">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                      <Icon aria-hidden="true" className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{option.title}{interviewType && ` · ${text.interviewSetup[interviewType]}`}</span>
+                      <time dateTime={session.completedAt} className="mt-1 block text-xs text-muted-foreground">
+                        {new Date(session.completedAt).toLocaleDateString(language, { dateStyle: 'medium' })}
+                      </time>
+                    </span>
+                    <span className="hidden rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground sm:inline-flex">{text.reportUnavailable}</span>
+                    <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                   </summary>
-                  <div className="space-y-2 px-4 pb-2 pt-1 text-sm leading-relaxed text-muted-foreground">
-                    <p>{isTechnical ? text.interviewSetup.technicalPrompt : option.prompt}</p>
-                    <AssessmentCriteria title={text.assessment} criteria={isTechnical ? text.interviewSetup.technicalCriteria : option.criteria} />
+                  <div className="border-t border-border px-4 pb-4 pt-3 sm:px-5">
+                    <p className="mb-3 text-xs font-semibold text-muted-foreground">{text.sessionDetails}</p>
+                    <div className="flex flex-col gap-3 text-sm leading-relaxed text-muted-foreground">
+                      <p>{isTechnical ? text.interviewSetup.technicalPrompt : option.prompt}</p>
+                      <AssessmentCriteria title={text.assessment} criteria={isTechnical ? text.interviewSetup.technicalCriteria : option.criteria} />
+                    </div>
                   </div>
                 </details>
               </li>
