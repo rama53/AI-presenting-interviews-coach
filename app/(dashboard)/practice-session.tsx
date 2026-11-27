@@ -363,7 +363,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         {isInterview ? (
           <div className="absolute inset-0">
             <div className="relative h-full w-full">
-              <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="h-full w-full object-cover object-center" />
+              <video autoPlay loop muted playsInline aria-label={ar ? 'ثلاثة محاورين' : 'Three interviewers'} poster={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/interview-idle.mp4`} className="h-full w-full object-cover object-center" />
               <div dir="ltr" className="absolute inset-x-[5%] top-[66%] grid grid-cols-3 gap-1 text-center">
                 {interviewerRoles.map((role, index) => <span key={role} className={`mx-auto rounded-lg px-2 py-1 text-xs font-semibold ${index === activeInterviewer && !interviewComplete ? 'bg-amber-300 text-slate-900' : 'bg-black/75 text-white'}`}>{role}{index === activeInterviewer && speakingInterviewer ? (ar ? ' · يتحدث' : ' · Speaking') : ''}</span>)}
               </div>
