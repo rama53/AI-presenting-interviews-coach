@@ -510,35 +510,30 @@ def analyze_presentation(
             },
         },
     }
-    request = Request(
-        "https://api.groq.com/openai/v1/chat/completions",
-        data=json.dumps(payload).encode(),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        method="POST",
-    )
+    from groq import APIConnectionError, APIStatusError, Groq
+
     try:
-        with urlopen(request, timeout=25) as response:
-            result = json.load(response)
-        answer = json.loads(result["choices"][0]["message"]["content"])
+        with Groq(api_key=key, timeout=25, max_retries=0) as client:
+            result = client.chat.completions.create(**payload)
+        answer = json.loads(result.choices[0].message.content or "")
         if data.task == "question":
             question = answer["question"].strip()
             if not question or len(question) > 500:
                 raise ValueError("Invalid question")
             return {"question": question}
         return PresentationReview.model_validate(answer)
-    except HTTPError as error:
-        diagnostic = "no structured error"
-        try:
-            details = json.loads(error.read(8192)).get("error", {})
-            code = details.get("code") or details.get("type")
-            if isinstance(code, str) and len(code) <= 80 and code.replace("_", "").replace("-", "").isascii() and code.replace("_", "").replace("-", "").isalnum():
-                diagnostic = code
-        except (ValueError, AttributeError, OSError):
-            pass
-        print(f"Groq presentation request rejected: HTTP {error.code} ({diagnostic})", flush=True)
-        if error.code == 429:
+    except APIStatusError as error:
+        body = error.body
+        detail = body.get("error", body) if isinstance(body, dict) else {}
+        code = detail.get("code") if isinstance(detail, dict) else None
+        if not isinstance(code, str) or len(code) > 80 or not code.replace("_", "").replace("-", "").isalnum():
+            code = "no structured error"
+        print(f"Groq presentation request rejected: HTTP {error.status_code} ({code})", flush=True)
+        if error.status_code == 429:
             raise HTTPException(429, "Groq rate limit reached") from error
-        raise HTTPException(502, f"Groq rejected the request (HTTP {error.code})") from error
-    except (URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+        raise HTTPException(502, f"Groq rejected the request (HTTP {error.status_code})") from error
+    except APIConnectionError as error:
+        raise HTTPException(504, "Groq could not be reached") from error
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
         print(f"Groq presentation request failed: {type(error).__name__}", flush=True)
         raise HTTPException(502, "Presentation AI service unavailable") from error
