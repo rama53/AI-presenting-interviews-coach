@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { savePracticeEnd, savePracticeStart } from '@/lib/practice-session-api'
+import { SaveSessionRecording } from './session-recording'
+import { usePracticeRecording } from './use-practice-recording'
 import { createPortal } from 'react-dom'
 import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation, Volume2, VolumeX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -242,12 +244,14 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const finishing = useRef(false)
   const autoFinishAttempted = useRef(false)
   const [finishError, setFinishError] = useState('')
+  const { state: recordingState, file: recordingFile, start: startRecording, stop: stopRecording, reset: resetRecording } = usePracticeRecording()
 
   const { stopMicrophone } = speech
   const finish = useCallback(async () => {
     if (completed.current || finishing.current) return
     finishing.current = true
     stopMicrophone()
+    stopRecording()
     setFinishError('')
     try {
       if (accessToken && remoteSessionId.current) await savePracticeEnd(accessToken, remoteSessionId.current)
@@ -260,7 +264,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     completed.current = true
     setSession({ phase: 'finished' })
     onComplete(interview?.type)
-  }, [accessToken, interview?.type, language, onComplete, stopMicrophone])
+  }, [accessToken, interview?.type, language, onComplete, stopMicrophone, stopRecording])
 
   useEffect(() => {
     heading.current?.focus()
@@ -488,6 +492,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     speech.setTranscript('')
     completed.current = false
     autoFinishAttempted.current = false
+    resetRecording()
     setAudienceQuestion(null)
     setPaused(false)
     setSlides(false)
@@ -598,7 +603,19 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             </button>}
             {isInterview && !interviewComplete && <button type="button" disabled={paused || speakingInterviewer || submittingInterviewAnswer || generatingInterviewQuestion || (!speech.busy && !speech.transcript.trim())} onClick={() => { setSubmittingInterviewAnswer(true); stopMicrophone() }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">{submittingInterviewAnswer ? (ar ? 'جاري التحضير…' : 'Preparing…') : (ar ? 'السؤال التالي' : 'Next question')}</button>}
             <span className="h-8 w-px bg-white/20"/>
+            {accessToken && (
+              <button type="button"
+                className="rounded-xl border border-white/25 px-3 py-2 text-sm disabled:opacity-50"
+                disabled={recordingState === 'starting' || recordingState === 'stopping' || recordingState === 'ready'}
+                onClick={recordingState === 'recording' ? stopRecording : startRecording}>
+                {recordingState === 'recording' ? (ar ? 'إيقاف التسجيل' : 'Stop recording')
+                  : recordingState === 'ready' ? (ar ? 'التسجيل جاهز للحفظ' : 'Recording ready to save')
+                  : (ar ? 'تسجيل الجلسة' : 'Record session')}
+              </button>
+            )}
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
+            {recordingState === 'starting' && <p role="status" className="basis-full text-center text-xs">{ar ? 'اختاري تبويب طليق وفعّلي مشاركة صوت التبويب.' : 'Choose the Taleeq tab and share tab audio.'}</p>}
+            {recordingState === 'error' && <p role="alert" className="basis-full text-center text-xs">{ar ? 'تعذّر التسجيل. اختاري تبويب طليق واسمحي بالمايك.' : 'Recording failed. Choose the Taleeq tab and allow the microphone.'}</p>}
           </div>
           {finishError && <p role="alert" className="mt-2 text-center text-sm text-white">{finishError}</p>}
         </footer>
@@ -630,6 +647,9 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
         const reviews = turns.map((turn, index) => ({ ...turn, result: analyzeTranscript({ transcript: turn.answer, language, mode: index % 3 === 1 ? 'technical' : 'personal' }) }))
         const overall = analyzeTranscript({ transcript, language, mode: isInterview ? 'personal' : 'presentation', presentationTopic })
         const notes = [...new Set(isInterview ? reviews.flatMap(r => r.result ? [r.result.note] : []) : overall ? [overall.note] : [])].slice(0, 3)
+        const savedComments = (aiFeedback
+          ? [aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.answers.flatMap(answer => [answer.feedback, answer.improvement]), ...aiFeedback.action_plan]
+          : notes).filter(Boolean).slice(0, 30).map(comment => comment.slice(0, 2000))
         const roles = ar ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
         const colors = ['bg-[#FCD4A5] text-[#85420F]', 'bg-[#DCD0FA] text-[#50348A]', 'bg-[#BCE8D2] text-[#175D43]']
         const stats = [{ label: ar ? 'مدة التدريب التقريبية' : 'Approximate duration', value: Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0') }, { label: isInterview ? (ar ? 'الإجابات' : 'Answers') : (ar ? 'ظهور الوجه' : 'Face visibility'), value: isInterview ? turns.length : cameraSamples.current.total >= 8 ? Math.round(100 * cameraSamples.current.visible / cameraSamples.current.total) + '%' : '—' }, { label: ar ? 'عدد الكلمات' : 'Words', value: words }]
@@ -663,6 +683,11 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           {reviews.map((r, i) => <details key={i} open={i === 0} className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold"><span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>{r.question}</summary><div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm"><p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p><p dir="auto" className="whitespace-pre-wrap">{r.answer}</p>{r.result && <>{r.result.evidence && <div className="rounded-lg bg-[#D9F3E5] p-3"><h3 className="font-semibold text-[#35664F]">{ar ? 'من كلامك' : 'Evidence from your answer'}</h3><p>{r.result.evidence}</p></div>}<div className="rounded-lg bg-[#FFE5C8] p-3"><h3 className="font-semibold text-[#985321]">{ar ? 'فرصة للتحسين' : 'Opportunity to improve'}</h3><p>{r.result.note}</p></div><div className="rounded-lg bg-[#E8DFFF] p-3"><h3 className="font-semibold text-[#66518E]">{ar ? 'قالب للتدريب' : 'Practice template'}</h3><p>{r.result.retry}</p></div></>}</div></details>)}</>}
           <div className="rounded-xl bg-[#CDEBDD] p-5"><h2 className="text-lg font-bold">{ar ? 'خطة التدريب القادمة' : 'Next practice plan'}</h2>{notes.length ? <ol className="mt-3 list-decimal space-y-2 ps-5 text-sm">{notes.map(note => <li key={note}>{note}</li>)}</ol> : <p className="mt-2 text-sm">{ar ? 'سجّل إجابة أو عرضًا للحصول على ملاحظات مخصصة.' : 'Record an answer or presentation for tailored feedback.'}</p>}</div>
           <details className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold">{ar ? 'النص الكامل والمراجعة' : 'Full transcript and revision'}</summary><PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? { ...speech, transcript: interviewReportTranscript, setTranscript: value => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value) } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} /></details>
+          {accessToken && remoteSessionId.current && (recordingFile || savedComments.length > 0)
+            && recordingState !== 'stopping' && aiFeedbackStatus !== 'loading' && !speech.busy && (
+              <SaveSessionRecording key={remoteSessionId.current} token={accessToken}
+                sessionId={remoteSessionId.current} arabic={ar} recording={recordingFile} comments={savedComments} />
+          )}
           <Button type="button" variant="outline" onClick={() => {
             const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.result?.note, r.result?.retry].filter(Boolean).join('\n')), transcript, ...notes, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan, ...aiFeedback.answers.map(a => [turns[a.index]?.question, a.feedback, a.improvement].join('\n'))] : [])].join('\n\n')
             const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
@@ -778,3 +803,4 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     </section>
   )
 }
+

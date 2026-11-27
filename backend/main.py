@@ -122,10 +122,34 @@ def recent_sessions(
     credentials: HTTPAuthorizationCredentials = Depends(bearer)
 ):
     return supabase_request(
-        "/rest/v1/practice_sessions?select=id,practice_type,ended_at"
+        "/rest/v1/practice_sessions?select=id,practice_type,ended_at,report"
         "&ended_at=not.is.null&order=ended_at.desc,id.desc&limit=5",
         credentials.credentials,
     )
+
+
+class PracticeReport(BaseModel):
+    comments: list[str] = Field(max_length=30)
+    recording: bool
+
+
+@app.post("/sessions/{session_id}/report")
+def save_practice_report(
+    session_id: UUID,
+    report: PracticeReport,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+):
+    if any(len(comment) > 2000 for comment in report.comments):
+        raise HTTPException(422, "Performance comments are too long")
+    rows = supabase_request(
+        f"/rest/v1/practice_sessions?id=eq.{session_id}&ended_at=not.is.null",
+        credentials.credentials,
+        {"report": report.model_dump()},
+        method="PATCH",
+    )
+    if not rows:
+        raise HTTPException(404, "Completed session not found")
+    return {"saved": True}
 
 
 @app.post("/sessions/{session_id}/finish")
@@ -431,3 +455,4 @@ def generate_interview_feedback(
         if hasattr(error, "errors"):
             print([(e.get("loc"), e.get("type")) for e in error.errors()], flush=True)
         raise HTTPException(502, "AI feedback response invalid") from error
+
