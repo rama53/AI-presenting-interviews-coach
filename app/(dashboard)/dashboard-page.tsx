@@ -78,7 +78,7 @@ export function DashboardPage() {
       <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="px-1 py-9 text-center sm:px-8 sm:py-14">
+        <header className="px-1 pt-9 pb-4 text-center sm:px-8 sm:pt-14 sm:pb-7">
           {language === 'ar' ? (
             <h1>
               <Image
@@ -92,7 +92,7 @@ export function DashboardPage() {
               {text.title.map((line) => <span key={line[0]} className="block">{line.join(' ')}</span>)}
             </h1>
           )}
-          <p className="mx-auto mt-6 max-w-2xl text-sm leading-loose text-muted-foreground sm:text-base rtl:font-['IBM_Plex_Sans_Arabic',sans-serif]">{text.intro}</p>
+          <p className="mx-auto mt-6 max-w-2xl text-sm leading-loose text-muted-foreground sm:text-base">{text.intro}</p>
           <p className="mx-auto mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
