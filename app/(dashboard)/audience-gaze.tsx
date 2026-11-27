@@ -74,6 +74,7 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
   useEffect(() => {
     if (paused || (!slidesOpen && capture.current?.zone === 'slides')) {
       capture.current = null
+      setNextZone(null)
       setCalibrationMessage('')
     }
     if (status !== 'ready' || paused) return
@@ -82,7 +83,8 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
       const sample = capture.current
       if (sample && performance.now() - sample.start > 2200) {
         capture.current = null
-        setCalibrationMessage(ar ? 'الوجه مش واضح كفاية. عدّلي مكانك وجرّبي هالجهة مرة ثانية.' : 'Face not clear enough. Move closer and try again.')
+        setNextZone(null)
+        setCalibrationMessage(ar ? 'تعذّر التقاط الاتجاه. تقدري تعيدي المعايرة أو تكمّلي العرض.' : 'Could not capture the direction. Restart calibration or continue presenting.')
       }
       const video = preview.current
       const detector = landmarker.current
@@ -104,7 +106,8 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
           const overlap = Object.entries(calibration).some(([zone, target]) => zone !== pending.zone && gazeDistance(target, average) < 0.045)
           capture.current = null
           if (overlap) {
-            setCalibrationMessage(ar ? 'الجهة قريبة من نقطة سابقة. حرّكي نظرك ورأسك شوي وحاولي مرة ثانية.' : 'This target is too close to a previous one. Turn slightly and retry.')
+            setNextZone(null)
+            setCalibrationMessage(ar ? 'الاتجاهات كانت متقاربة. تقدري تكمّلي العرض أو تعيدي المعايرة مع حركة خفيفة للرأس.' : 'The directions were too close. Continue presenting or recalibrate with a slight head turn.')
             return
           }
           calibration[pending.zone] = average
@@ -150,11 +153,6 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
           {nextZone && (
             <div className="space-y-2">
               <p>{ar ? 'اطلعي باتجاه' : 'Look toward'} <strong>{labels[nextZone]}</strong></p>
-              {!capture.current && (
-                <button type="button" disabled={paused} className="rounded-lg bg-white/15 px-3 py-2 disabled:opacity-50" onClick={() => captureZone(nextZone)}>
-                  {ar ? 'أعيدي هالجهة' : 'Retry this direction'}
-                </button>
-              )}
               <button type="button" className="ms-2 rounded-lg px-3 py-2 hover:bg-white/15" onClick={() => {
                 capture.current = null
                 setNextZone(null)
