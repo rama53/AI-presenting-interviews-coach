@@ -32,7 +32,7 @@ type InterviewDetails = {
 }
 
 const interviewMaxMinutes = 20
-const fieldClass = 'mt-1.5 block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring'
+const fieldClass = 'mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-[#182D43] placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-[#315B82]'
 
 type Session =
   | { phase: 'ready' }
@@ -471,7 +471,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   return (
     <section id="practice-session" aria-labelledby="practice-session-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
       <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-2xl font-semibold tracking-tight">
-        {session.phase === 'finished' ? (language === 'ar' ? 'رحلة تطوّرك تبدأ هنا' : 'Your growth starts here') : session.phase === 'ready' ? practice.setup : practice.running}
+        {session.phase === 'finished' ? (language === 'ar' ? 'رحلة تطوّرك تبدأ هنا' : 'Your growth starts here') : session.phase === 'ready' ? (isInterview ? (language === 'ar' ? 'لنستعد لمقابلتك القادمة' : 'Prepare for your next interview') : practice.setup) : practice.running}
       </h1>
       {session.phase === 'finished' && (() => {
         const ar = language === 'ar'
@@ -511,10 +511,10 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           }}>{ar ? 'حفظ التقرير' : 'Download report'}</Button>
         </div>
       })()}
-      {session.phase === 'ready' && isInterview && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>}
+      {session.phase === 'ready' && isInterview && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{language === 'ar' ? 'أخبرنا عن الوظيفة التي تستهدفها لنخصص أسئلة المقابلة وفقًا لها.' : 'Tell us about your target role so we can tailor your interview questions.'}</p>}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
-          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">{language === "ar" ? "قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك." : "Your browser may send audio to a transcription service when the mic is on."}</p>
+
           {!isInterview && (
             <label className="mb-4 block text-sm font-medium">
               {language === 'ar' ? 'موضوع العرض (اختياري)' : 'Presentation topic (optional)'}
@@ -522,9 +522,9 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             </label>
           )}
           {isInterview && (
-            <div className="mb-5 grid gap-5">
+            <div className="mb-5 grid gap-5 rounded-2xl border border-[#D5E2F0] bg-[#F0F5FC] p-5"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#23466B] px-3 py-2 font-bold text-white">01</span><div><h2 className="font-bold text-[#182D43]">{language === "ar" ? "الوظيفة المستهدفة" : "Target role"}</h2><p className="text-xs text-slate-600">{language === "ar" ? "لنخصص الأسئلة حسب المجال ومتطلبات الوظيفة." : "Tailor questions to the role and its requirements."}</p></div></div>
               <div>
-                <label htmlFor="job-title" className="block text-sm font-medium">{interviewText.jobTitle}</label>
+                <label htmlFor="job-title" className="block text-sm font-medium">{language === "ar" ? "ما الوظيفة التي تستعد للمقابلة من أجلها؟" : "What role are you interviewing for?"}</label>
                 <input
                   id="job-title"
                   name="job-title"
@@ -533,11 +533,11 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                   maxLength={120}
                   pattern={String.raw`.*\S.*`}
                   placeholder={interviewText.jobTitlePlaceholder}
-                  className={fieldClass}
+                  className={fieldClass + " text-start"}
                 />
               </div>
               <div>
-                <label htmlFor="job-description" className="block text-sm font-medium">{interviewText.jobDescription}</label>
+                <label htmlFor="job-description" className="block text-sm font-medium">{language === "ar" ? "ما المهارات والمسؤوليات المطلوبة؟ (اختياري)" : "What skills and responsibilities are required? (Optional)"}</label>
                 <textarea
                   id="job-description"
                   name="job-description"
@@ -547,7 +547,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                   dir="auto"
                   rows={4}
                   maxLength={4000}
-                  placeholder={language === 'ar' ? 'أضف متطلبات الإعلان لتخصيص الأسئلة' : 'Paste the job requirements to tailor interview questions'}
+                  placeholder={language === 'ar' ? 'مثال: تطوير واجهات باستخدام React، العمل ضمن فريق، واختبار التطبيقات.' : 'Paste the job requirements to tailor interview questions'}
                   className={fieldClass}
                 />
               </div>
@@ -561,8 +561,15 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             </select>
           </div>
           )}
-          <div className="mb-4">
-            <label htmlFor="session-minutes" className="block text-sm font-medium">{text.duration}</label>
+          {isInterview && (
+            <div className="mb-5 space-y-3 rounded-2xl border border-[#D9D0F0] bg-[#F2EEFC] p-5"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#66518E] px-3 py-2 font-bold text-white">02</span><div><h2 className="font-bold text-[#182D43]">{language === "ar" ? "مستندات تساعدنا على تخصيص المقابلة" : "Personalize with documents"}</h2><p className="text-xs text-slate-600">{language === "ar" ? "يمكن إرفاق إعلان الوظيفة أو السيرة الذاتية (اختياري)." : "Optionally attach the job posting or your CV."}</p></div></div>
+              <InterviewDocument kind="job" language={language} onText={setJobDescriptionDraft} onLoading={setReadingJobFile} />
+              <InterviewDocument kind="cv" language={language} onText={setCvText} onLoading={setReadingCvFile} />
+            </div>
+          )}
+          <div className="mb-5 rounded-2xl border border-[#C7E4D5] bg-[#E9F6EF] p-5">
+            {isInterview && <div className="mb-4 flex items-center gap-3"><span className="rounded-xl bg-[#267354] px-3 py-2 font-bold text-white">03</span><h2 className="font-bold text-[#182D43]">{language === "ar" ? "إعدادات الجلسة" : "Session settings"}</h2></div>}
+            <label htmlFor="session-minutes" className="block text-sm font-medium">{language === "ar" ? "كم دقيقة تريد أن تستمر الجلسة؟" : "How many minutes would you like to practice?"}</label>
             <input
               id="session-minutes"
               name="minutes"
@@ -576,12 +583,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             />
             {isInterview && <p id="interview-duration-hint" className="mt-1 text-xs text-muted-foreground">{interviewText.durationHint}</p>}
           </div>
-          {isInterview ? (
-            <div className="mb-5 space-y-3">
-              <InterviewDocument kind="job" language={language} onText={setJobDescriptionDraft} onLoading={setReadingJobFile} />
-              <InterviewDocument kind="cv" language={language} onText={setCvText} onLoading={setReadingCvFile} />
-            </div>
-          ) : (
+          {!isInterview && (
           <div className="mb-5">
             <label htmlFor="session-attachment" className="block text-sm font-medium">
               {text.presentationFile}
@@ -595,8 +597,9 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             />
           </div>
           )}
+          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">{language === "ar" ? "قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك." : "Your browser may send audio to a transcription service when the mic is on."}</p>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={readingJobFile || readingCvFile}>{text.start}</Button>
+            <Button className="bg-[#182D43] px-6 text-white hover:bg-[#315B82]" type="submit" disabled={readingJobFile || readingCvFile}>{isInterview ? (language === "ar" ? "ابدأ المقابلة" : "Start interview") : text.start}</Button>
             <Button type="button" variant="outline" onClick={onClose}>{text.cancel}</Button>
           </div>
         </form>
