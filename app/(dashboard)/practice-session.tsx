@@ -10,6 +10,8 @@ import { buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-a
 import { AudienceQuestion } from './audience-question'
 import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
 import { emptyCameraSamples, type CameraSamples } from '@/lib/camera-feedback'
+import { InterviewDocument } from './interview-document'
+import { readPresentationSlides } from '@/lib/practice-files'
 import { PracticeAnalysis } from './practice-analysis'
 import type { DashboardCopy, Language } from './copy'
 import type { InterviewType } from './recent-sessions'
@@ -64,6 +66,13 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const speech = usePracticeTranscript(language)
   const [slides, setSlides] = useState(false)
   const [slideUrl, setSlideUrl] = useState('')
+  const [slideTexts, setSlideTexts] = useState<string[]>([])
+  const [slideIndex, setSlideIndex] = useState(0)
+  const [slideStatus, setSlideStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [jobDescriptionDraft, setJobDescriptionDraft] = useState('')
+  const [cvText, setCvText] = useState('')
+  const [readingJobFile, setReadingJobFile] = useState(false)
+  const [readingCvFile, setReadingCvFile] = useState(false)
   const [mediaError, setMediaError] = useState(false)
   const cameraSamples = useRef(emptyCameraSamples())
   const previousCameraSamples = useRef<CameraSamples | null>(null)
@@ -82,8 +91,11 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const roomOptions = isInterview ? text.interviewPanelOptions : text.audienceOptions
   const isTechnical = interview?.type === 'technical'
   const jobQuestions = useMemo(
-    () => questionsFromJobDescription(interview?.jobDescription ?? '', language, interview?.type ?? 'personal'),
-    [interview, language],
+    () => Array.from(new Set([
+      ...questionsFromJobDescription(interview?.jobDescription ?? '', language, interview?.type ?? 'personal'),
+      ...questionsFromJobDescription(cvText, language, interview?.type ?? 'personal'),
+    ])),
+    [cvText, interview, language],
   )
   const interviewQuestion = interviewFollowUp ?? jobQuestions[0] ?? (isTechnical ? interviewText.technicalPrompt : practice.prompt)
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
@@ -150,6 +162,24 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     return () => URL.revokeObjectURL(url)
   }, [attachment])
 
+  useEffect(() => {
+    setSlideTexts([])
+    setSlideIndex(0)
+    setSlideStatus('idle')
+    if (!slides || !attachment || !/\.pptx$/i.test(attachment.name)) return
+
+    let cancelled = false
+    setSlideStatus('loading')
+    void readPresentationSlides(attachment).then((items) => {
+      if (cancelled) return
+      setSlideTexts(items)
+      setSlideStatus('idle')
+    }).catch(() => {
+      if (!cancelled) setSlideStatus('error')
+    })
+    return () => { cancelled = true }
+  }, [attachment, slides])
+
   async function toggleCamera() {
     const kind = 'camera'
     if (pending.current.has(kind)) return
@@ -207,6 +237,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
 
   function startPractice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (readingJobFile || readingCvFile) return
     const fields = new FormData(event.currentTarget)
     const duration = Number(fields.get('minutes')) * 60
     if (isInterview) {
@@ -287,7 +318,24 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         {camera && <video ref={preview} autoPlay muted playsInline className="absolute end-4 bottom-32 w-36 rounded-xl border border-white/30 bg-black shadow-xl sm:w-48" style={{ transform: 'scaleX(-1)' }} />}
         {slides && <aside className="absolute start-4 top-24 bottom-32 flex w-[min(85vw,420px)] flex-col overflow-hidden rounded-xl border border-white/20 bg-[#142332]/95 shadow-xl">
           <div className="flex items-center justify-between p-3"><span>{ar ? 'الشرائح' : 'Slides'}</span><button type="button" onClick={() => setSlides(false)} aria-label={ar ? 'إغلاق' : 'Close'}><X size={18}/></button></div>
-          {slideUrl ? <iframe title={ar ? 'الشرائح' : 'Slides'} src={slideUrl} className="min-h-0 flex-1 bg-white"/> : <p className="p-4 text-sm">{attachment ? (ar ? 'حوّل الشرائح إلى PDF للمعاينة' : 'Convert slides to PDF for preview') : (ar ? 'لم يتم إرفاق شرائح' : 'No slides attached')}</p>}
+          {slideUrl ? (
+            <iframe title={ar ? 'الشرائح' : 'Slides'} src={slideUrl} className="min-h-0 flex-1 bg-white" />
+          ) : slideTexts.length ? (
+            <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
+              <p className="text-xs text-white/75">{ar ? 'معاينة نصّية' : 'Text preview'} · {slideIndex + 1}/{slideTexts.length}</p>
+              <p dir="auto" className="whitespace-pre-wrap">{slideTexts[slideIndex] || (ar ? 'ما في نص قابل للعرض بهالشريحة.' : 'This slide has no displayable text.')}</p>
+              <div className="flex gap-2">
+                <button type="button" disabled={slideIndex === 0} className="rounded bg-white/20 px-3 py-1 disabled:opacity-40" onClick={() => setSlideIndex((index) => index - 1)}>{ar ? 'السابقة' : 'Previous'}</button>
+                <button type="button" disabled={slideIndex === slideTexts.length - 1} className="rounded bg-white/20 px-3 py-1 disabled:opacity-40" onClick={() => setSlideIndex((index) => index + 1)}>{ar ? 'التالي' : 'Next'}</button>
+              </div>
+            </div>
+          ) : (
+            <p className="p-4 text-sm">
+              {slideStatus === 'loading' ? (ar ? 'جاري قراءة الشرائح…' : 'Reading slides…') :
+                attachment ? (ar ? 'المعاينة الكاملة متاحة بصيغة PDF. جرّبي تصدّري الشرائح كـPDF.' : 'Export the slides as PDF for a full preview.') :
+                (ar ? 'لم يتم إرفاق شرائح' : 'No slides attached')}
+            </p>
+          )}
         </aside>}
         {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} />}
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
@@ -419,6 +467,9 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                 <textarea
                   id="job-description"
                   name="job-description"
+                  value={jobDescriptionDraft}
+                  readOnly={readingJobFile}
+                  onChange={(event) => setJobDescriptionDraft(event.target.value)}
                   dir="auto"
                   rows={4}
                   maxLength={4000}
@@ -451,20 +502,27 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             />
             {isInterview && <p id="interview-duration-hint" className="mt-1 text-xs text-muted-foreground">{interviewText.durationHint}</p>}
           </div>
+          {isInterview ? (
+            <div className="mb-5 space-y-3">
+              <InterviewDocument kind="job" language={language} onText={setJobDescriptionDraft} onLoading={setReadingJobFile} />
+              <InterviewDocument kind="cv" language={language} onText={setCvText} onLoading={setReadingCvFile} />
+            </div>
+          ) : (
           <div className="mb-5">
             <label htmlFor="session-attachment" className="block text-sm font-medium">
-              {isInterview ? text.cvFile : text.presentationFile}
+              {text.presentationFile}
             </label>
             <input
               id="session-attachment"
               name="attachment"
               type="file"
-              accept={isInterview ? '.pdf,.doc,.docx' : '.pdf,.ppt,.pptx,.doc,.docx'}
+              accept=".pdf,.pptx"
               className={`${fieldClass} file:me-3 file:rounded-md file:border-0 file:bg-primary-soft file:px-2 file:py-1 file:font-medium file:text-primary`}
             />
           </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <Button type="submit">{text.start}</Button>
+            <Button type="submit" disabled={readingJobFile || readingCvFile}>{text.start}</Button>
             <Button type="button" variant="outline" onClick={onClose}>{text.cancel}</Button>
           </div>
         </form>
