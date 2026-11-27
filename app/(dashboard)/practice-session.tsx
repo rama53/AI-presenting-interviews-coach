@@ -123,6 +123,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const generation = useRef(0)
   const [interviewTurns, setInterviewTurns] = useState<{ question: string; answer: string }[]>([])
   const [interviewFollowUp, setInterviewFollowUp] = useState<string | null>(null)
+  const [generatingInterviewQuestion, setGeneratingInterviewQuestion] = useState(false)
   const [interviewComplete, setInterviewComplete] = useState(false)
   const [submittingInterviewAnswer, setSubmittingInterviewAnswer] = useState(false)
   const [interviewTranscriptEdit, setInterviewTranscriptEdit] = useState<string | null>(null)
@@ -149,7 +150,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const activeInterviewer = interviewTurns.length % 3
   const interviewerRoles = language === 'ar' ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
   useEffect(() => {
-    if (!isInterview || session.phase !== 'running' || paused || interviewComplete) return
+    if (!isInterview || session.phase !== 'running' || paused || interviewComplete || generatingInterviewQuestion) return
     let cancelled = false
     let audio: HTMLAudioElement | undefined
     let objectUrl: string | undefined
@@ -207,7 +208,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
       if ('speechSynthesis' in window) window.speechSynthesis.cancel()
       setSpeakingInterviewer(false)
     }
-  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer, accessToken])
+  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer, accessToken, generatingInterviewQuestion])
 
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
@@ -355,7 +356,33 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     setInterviewFollowUp(next)
     setInterviewComplete(next === null)
     speech.setTranscript('')
-  }, [submittingInterviewAnswer, session.phase, speech.busy, speech.transcript, speech.setTranscript, interviewTurns, interviewQuestion, language, interview?.type, jobQuestions])
+    const api = process.env.NEXT_PUBLIC_TALEEQ_API_URL
+    if (!next || !api) return
+    setGeneratingInterviewQuestion(true)
+    const token = generation.current
+    void (async () => {
+      try {
+        const response = await fetch(api.replace(/\/$/, '') + '/ai/interview/question', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) },
+          body: JSON.stringify({
+            role: interview?.jobTitle || 'General interview',
+            cv: cvText.slice(0, 16000),
+            job_description: (interview?.jobDescription ?? '').slice(0, 12000),
+            interviewer: nextRole, language,
+            history: turns.map(t => ({ question: t.question.slice(0, 600), answer: t.answer.slice(0, 6000) })),
+          }),
+          signal: AbortSignal.timeout(30000),
+        })
+        if (!response.ok) return
+        const result = await response.json()
+        if (generation.current === token && typeof result.question === 'string' && result.question.trim()) {
+          setInterviewFollowUp(result.question.trim())
+        }
+      } catch { /* Keep local fallback. */ }
+      finally { if (generation.current === token) setGeneratingInterviewQuestion(false) }
+    })()
+  }, [submittingInterviewAnswer, session.phase, speech.busy, speech.transcript, speech.setTranscript, interviewTurns, interviewQuestion, language, interview, jobQuestions, cvText, accessToken])
 
   function togglePause() {
     if (session.phase !== 'running') return
@@ -520,8 +547,8 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
               <p role="status" className="text-sm">{ar ? 'انتهت الأسئلة. يمكن إنهاء التدريب لعرض التقرير.' : 'Questions complete. End the session to see your report.'}</p>
             ) : (
               <>
-                <p aria-live="polite" className="mx-auto max-h-16 overflow-auto text-sm font-medium leading-relaxed text-white">{interviewQuestion}</p>
-                <p role="status" className="mt-1 text-xs text-white/70">{speakingInterviewer ? (ar ? 'المحاور يتحدث' : 'Interviewer speaking') : speech.busy ? (ar ? 'جاري الاستماع…' : 'Listening…') : (ar ? 'اضغط على المايك للإجابة' : 'Tap the mic to answer')}</p>
+                <p aria-live="polite" className="mx-auto max-h-16 overflow-auto text-sm font-medium leading-relaxed text-white">{generatingInterviewQuestion ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…') : interviewQuestion}</p>
+                <p role="status" className="mt-1 text-xs text-white/70">{generatingInterviewQuestion ? (ar ? 'جاري توليد السؤال' : 'Generating question') : speakingInterviewer ? (ar ? 'المحاور يتحدث' : 'Interviewer speaking') : speech.busy ? (ar ? 'جاري الاستماع…' : 'Listening…') : (ar ? 'اضغط على المايك للإجابة' : 'Tap the mic to answer')}</p>
               </>
             )}
           </section>
@@ -529,7 +556,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
-              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy && !submittingInterviewAnswer && !interviewComplete && !speakingInterviewer) speech.startMicrophone() } },
+              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy && !submittingInterviewAnswer && !generatingInterviewQuestion && !interviewComplete && !speakingInterviewer) speech.startMicrophone() } },
               { label: ar ? 'صوت الخلفية' : 'Ambience', active: !ambienceMuted, Icon: ambienceMuted ? VolumeX : Volume2, action: () => setAmbienceMuted(v => !v) },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               ...(!isInterview ? [{ label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) }] : []),
@@ -544,7 +571,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
                 ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…')
                 : (ar ? 'انتهيت من العرض — بدء الأسئلة' : 'I’m done and ready for questions')}
             </button>}
-            {isInterview && !interviewComplete && <button type="button" disabled={paused || speakingInterviewer || submittingInterviewAnswer || (!speech.busy && !speech.transcript.trim())} onClick={() => { setSubmittingInterviewAnswer(true); stopMicrophone() }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">{submittingInterviewAnswer ? (ar ? 'جاري التحضير…' : 'Preparing…') : (ar ? 'السؤال التالي' : 'Next question')}</button>}
+            {isInterview && !interviewComplete && <button type="button" disabled={paused || speakingInterviewer || submittingInterviewAnswer || generatingInterviewQuestion || (!speech.busy && !speech.transcript.trim())} onClick={() => { setSubmittingInterviewAnswer(true); stopMicrophone() }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">{submittingInterviewAnswer ? (ar ? 'جاري التحضير…' : 'Preparing…') : (ar ? 'السؤال التالي' : 'Next question')}</button>}
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
           </div>
