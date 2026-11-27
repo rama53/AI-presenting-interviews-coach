@@ -562,7 +562,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           </div>
           )}
           {isInterview && (
-            <div className="space-y-3 rounded-2xl border border-[#D9D0F0] bg-[#F2EEFC] p-4"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#66518E] px-3 py-2 font-bold text-white">02</span><div><h2 className="font-bold text-[#182D43]">{language === "ar" ? "مستندات تساعدنا على تخصيص المقابلة" : "Personalize with documents"}</h2><p className="text-xs text-slate-600">{language === "ar" ? "يمكن إرفاق إعلان الوظيفة أو السيرة الذاتية (اختياري)." : "Optionally attach the job posting or your CV."}</p></div></div>
+            <div className="space-y-3 rounded-2xl border border-[#C4D3E4] bg-[#E8EFF8] p-4"><div className="flex items-center gap-3"><span className="rounded-xl bg-[#17283F] px-3 py-2 font-bold text-white">02</span><div><h2 className="font-bold text-[#182D43]">{language === "ar" ? "مستندات تساعدنا على تخصيص المقابلة" : "Personalize with documents"}</h2><p className="text-xs text-slate-600">{language === "ar" ? "يمكن إرفاق إعلان الوظيفة أو السيرة الذاتية (اختياري)." : "Optionally attach the job posting or your CV."}</p></div></div>
               <InterviewDocument kind="job" language={language} onText={setJobDescriptionDraft} onLoading={setReadingJobFile} />
               <InterviewDocument kind="cv" language={language} onText={setCvText} onLoading={setReadingCvFile} />
             </div>
