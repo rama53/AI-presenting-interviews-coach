@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { DashboardCopy } from './copy'
 import type { InterviewType } from './recent-sessions'
@@ -37,6 +39,20 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
   const [secondsLeft, setSecondsLeft] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const pausedAt = useRef(0)
+  const roomRef = useRef<HTMLElement>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [camera, setCamera] = useState(false)
+  const [mic, setMic] = useState(false)
+  const [slides, setSlides] = useState(false)
+  const [slideUrl, setSlideUrl] = useState('')
+  const [mediaError, setMediaError] = useState(false)
+  const preview = useRef<HTMLVideoElement>(null)
+  const streams = useRef<Partial<Record<'camera' | 'mic', MediaStream>>>({})
+  const pending = useRef(new Set<string>())
+  const generation = useRef(0)
   const [interview, setInterview] = useState<InterviewDetails | null>(null)
   const interviewText = text.interviewSetup
   const roomLabel = isInterview ? text.interviewPanel : text.audienceSize
@@ -57,7 +73,7 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
   }, [session.phase])
 
   useEffect(() => {
-    if (session.phase !== 'running') return
+    if (session.phase !== 'running' || paused) return
 
     function updateTime(deadline: number) {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
@@ -67,7 +83,75 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
 
     const timer = window.setInterval(updateTime, 250, session.deadline)
     return () => window.clearInterval(timer)
-  }, [session, finish])
+  }, [session, finish, paused])
+
+  useEffect(() => {
+    if (session.phase !== 'running' || isInterview) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const sync = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', sync)
+    return () => {
+      document.body.style.overflow = previous
+      document.removeEventListener('fullscreenchange', sync)
+      if (document.fullscreenElement === roomRef.current) void document.exitFullscreen().catch(() => {})
+    }
+  }, [session.phase, isInterview])
+
+  useEffect(() => {
+    if (session.phase !== 'running' || isInterview) return
+    return () => {
+      generation.current++
+      Object.values(streams.current).forEach(stream => stream?.getTracks().forEach(track => track.stop()))
+      streams.current = {}
+    }
+  }, [session.phase, isInterview])
+
+  useEffect(() => {
+    if (camera && preview.current) preview.current.srcObject = streams.current.camera ?? null
+  }, [camera])
+
+  const attachment = session.phase === 'running' ? session.attachment : null
+  useEffect(() => {
+    if (!attachment || !/\.pdf$/i.test(attachment.name)) { setSlideUrl(''); return }
+    const url = URL.createObjectURL(attachment)
+    setSlideUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [attachment])
+
+  async function toggleMedia(kind: 'camera' | 'mic') {
+    const set = kind === 'camera' ? setCamera : setMic
+    if (pending.current.has(kind)) return
+    if (streams.current[kind]) {
+      streams.current[kind]?.getTracks().forEach(track => track.stop())
+      delete streams.current[kind]
+      set(false)
+      return
+    }
+    pending.current.add(kind)
+    const token = generation.current
+    try {
+      setMediaError(false)
+      const stream = await navigator.mediaDevices.getUserMedia(kind === 'camera' ? { video: true } : { audio: true })
+      if (token !== generation.current) { stream.getTracks().forEach(track => track.stop()); return }
+      streams.current[kind] = stream
+      set(true)
+    } catch { if (token === generation.current) setMediaError(true) }
+    finally { pending.current.delete(kind) }
+  }
+
+  function togglePause() {
+    if (session.phase !== 'running') return
+    if (paused) {
+      setSession({ ...session, deadline: session.deadline + Date.now() - pausedAt.current })
+      setPaused(false)
+      void videoRef.current?.play().catch(() => {})
+    } else {
+      pausedAt.current = Date.now()
+      setPaused(true)
+      videoRef.current?.pause()
+    }
+  }
 
   function startPractice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -92,6 +176,48 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
 
   const minutes = Math.floor(secondsLeft / 60)
   const seconds = String(secondsLeft % 60).padStart(2, '0')
+
+  if (session.phase === 'running' && !isInterview) {
+    const ar = /[\u0600-\u06ff]/.test(practice.running)
+    return createPortal(
+      <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
+        <video ref={videoRef} autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover object-center"
+          src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/7c1e9fcb-ca5d-4151-b05d-abb0fb50ca64-video.mp4`} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/75 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/75 to-transparent" />
+        <header className="absolute inset-x-0 top-0 flex items-center justify-between gap-3 p-4 sm:p-7">
+          <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="sr-only">{practice.running}</h1>
+          <div className="ms-auto flex items-center gap-2">
+            <div className="rounded-2xl border border-white/20 bg-[#142332]/85 px-3 py-1.5 backdrop-blur-md">
+              <div className="flex items-center gap-2 text-xs text-white/80"><span className={`h-2 w-2 rounded-full ${paused ? 'bg-amber-400' : 'bg-emerald-400'}`} />{paused ? (ar ? 'متوقف مؤقتاً' : 'Paused') : (ar ? 'جلسة مباشرة' : 'Live session')}</div>
+              <div role="timer" aria-label={text.remaining} className="text-center text-xl font-semibold tabular-nums"><bdi dir="ltr">{minutes}:{seconds}</bdi></div>
+            </div>
+            <button type="button" onClick={onClose} aria-label={text.cancel} title={text.cancel} className="rounded-full bg-black/45 p-3 hover:bg-black/70"><X size={20}/></button>
+          </div>
+        </header>
+        {paused && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="rounded-full bg-black/65 px-6 py-3 text-lg backdrop-blur">{ar ? 'الجلسة متوقفة مؤقتاً' : 'Session paused'}</span></div>}
+        {camera && <video ref={preview} autoPlay muted playsInline className="absolute end-4 bottom-32 w-36 rounded-xl border border-white/30 bg-black shadow-xl sm:w-48" style={{ transform: 'scaleX(-1)' }} />}
+        {slides && <aside className="absolute start-4 top-24 bottom-32 flex w-[min(85vw,420px)] flex-col overflow-hidden rounded-xl border border-white/20 bg-[#142332]/95 shadow-xl">
+          <div className="flex items-center justify-between p-3"><span>{ar ? 'الشرائح' : 'Slides'}</span><button type="button" onClick={() => setSlides(false)} aria-label={ar ? 'إغلاق' : 'Close'}><X size={18}/></button></div>
+          {slideUrl ? <iframe title={ar ? 'الشرائح' : 'Slides'} src={slideUrl} className="min-h-0 flex-1 bg-white"/> : <p className="p-4 text-sm">{attachment ? (ar ? 'حوّل الشرائح إلى PDF للمعاينة' : 'Convert slides to PDF for preview') : (ar ? 'لم يتم إرفاق شرائح' : 'No slides attached')}</p>}
+        </aside>}
+        {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
+        <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
+          <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
+            {[
+              { label: ar ? 'المايك' : 'Mic', active: mic, Icon: mic ? Mic : MicOff, action: () => void toggleMedia('mic') },
+              { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleMedia('camera') },
+              { label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) },
+              { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
+            ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
+            <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
+            <span className="h-8 w-px bg-white/20"/>
+            <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
+          </div>
+        </footer>
+      </section>, document.body
+    )
+  }
 
   return (
     <section id="practice-session" aria-labelledby="practice-session-heading" className="rounded-2xl border border-border bg-card p-5 sm:p-7">
@@ -214,7 +340,10 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
       ) : (
         <div className="mt-5 flex flex-wrap gap-2">
           {session.phase === 'running' && (
-            <Button type="button" onClick={finish}>{text.finish}</Button>
+            <>
+              {!isInterview && <Button type="button" variant="outline" onClick={togglePause}>{paused ? 'Resume / استئناف' : 'Pause / إيقاف مؤقت'}</Button>}
+              <Button type="button" onClick={finish}>{text.finish}</Button>
+            </>
           )}
           <Button type="button" variant={session.phase === 'finished' ? 'default' : 'outline'} onClick={onClose}>
             {session.phase === 'finished' ? text.back : text.cancel}
