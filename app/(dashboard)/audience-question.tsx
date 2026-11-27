@@ -7,9 +7,12 @@ import type { Language } from './copy'
 import { usePracticeTranscript } from './use-practice-transcript'
 
 const answerSeconds = 30
+const audienceApi = process.env.NEXT_PUBLIC_AUDIENCE_API_URL?.replace(/\/$/, '')
 
-export function AudienceQuestion({ question, language, onClose, onFinish }: {
+export function AudienceQuestion({ question, transcript, presentationTopic, language, onClose, onFinish }: {
   question: ReturnType<typeof buildAudienceQuestion>
+  transcript: string
+  presentationTopic: string
   language: Language
   onClose: () => void
   onFinish: () => void
@@ -20,6 +23,11 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
   const [deadline, setDeadline] = useState<number | null>(null)
   const [seconds, setSeconds] = useState(answerSeconds)
   const [finished, setFinished] = useState(false)
+  const [sourceText, setSourceText] = useState(() => transcript.slice(0, 16000))
+  const [generated, setGenerated] = useState<{ question: string; audioBase64: string } | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generationFailed, setGenerationFailed] = useState(false)
+  const request = useRef<AbortController | null>(null)
   const [audioUnavailable, setAudioUnavailable] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const audio = useRef<HTMLAudioElement>(null)
@@ -28,8 +36,9 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
     const room = dialog.current
     const player = audio.current
     room?.showModal()
-    void player?.play().catch(() => {})
+    if (!audienceApi) void player?.play().catch(() => {})
     return () => {
+      request.current?.abort()
       player?.pause()
       room?.close()
     }
@@ -59,6 +68,35 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
     }
   }
 
+  async function generateQuestion() {
+    if (!audienceApi || request.current || !sourceText.trim()) return
+    const controller = new AbortController()
+    request.current = controller
+    setGenerating(true)
+    setGenerationFailed(false)
+    setAudioUnavailable(false)
+    audio.current?.pause()
+    try {
+      const response = await fetch(`${audienceApi}/audience-question`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(35000)]),
+        body: JSON.stringify({ transcript: sourceText, topic: presentationTopic, language }),
+      })
+      if (!response.ok) throw new Error('Question generation failed')
+      const result = await response.json()
+      if (typeof result.question !== 'string' || typeof result.audioBase64 !== 'string' || !result.audioBase64) {
+        throw new Error('Invalid question response')
+      }
+      setGenerated(result)
+    } catch {
+      if (!controller.signal.aborted) setGenerationFailed(true)
+    } finally {
+      request.current = null
+      if (!controller.signal.aborted) setGenerating(false)
+    }
+  }
+
   const active = deadline !== null && !finished
   return (
     <dialog
@@ -71,12 +109,26 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
       aria-label={ar ? 'تحدّي الجمهور' : 'Audience challenge'}
     >
       <h3 className="font-semibold">{ar ? 'سؤال من الجمهور' : 'Audience question'}</h3>
-      <p>{question.text}</p>
-      <audio ref={audio} preload="auto" src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-audio/${question.audio}`} />
+      {audienceApi && deadline === null && !generated && (
+        <div className="space-y-2">
+          <label className="block">
+            {ar ? 'نص العرض أو ملخّصه' : 'Presentation transcript or summary'}
+            <textarea className="mt-1 block w-full rounded-lg border border-input bg-background p-2" dir="auto" rows={3} maxLength={16000} disabled={generating} value={sourceText} onChange={(event) => setSourceText(event.target.value)} />
+          </label>
+          <p className="text-sm text-muted-foreground">{ar ? 'سيُرسل النص إلى خدمة الذكاء الاصطناعي لتوليد السؤال والصوت.' : 'The text will be sent to an AI service to generate the question and its audio.'}</p>
+          <Button type="button" disabled={generating || !sourceText.trim()} onClick={generateQuestion}>
+            {generating ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…') : (ar ? 'ولّدي سؤالًا من عرضي' : 'Generate a question from my talk')}
+          </Button>
+          {generationFailed && <p role="status">{ar ? 'تعذّر توليد سؤال. جرّبي مرة ثانية أو استخدمي السؤال الجاهز.' : 'We could not generate a question. Retry or use the prepared question.'}</p>}
+        </div>
+      )}
+      <p>{generated?.question ?? question.text}</p>
+      {generated && <p className="text-sm text-muted-foreground">{ar ? 'صوت مولّد بالذكاء الاصطناعي' : 'AI-generated voice'}</p>}
+      <audio ref={audio} preload="auto" src={generated ? `data:audio/mpeg;base64,${generated.audioBase64}` : `${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-audio/${question.audio}`} />
       {deadline === null && (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={readQuestion}>{ar ? 'اسمعي السؤال' : 'Listen to the question'}</Button>
-          <Button type="button" onClick={() => {
+          <Button type="button" variant="outline" disabled={generating} onClick={readQuestion}>{ar ? 'اسمعي السؤال' : 'Listen to the question'}</Button>
+          <Button type="button" disabled={generating} onClick={() => {
             audio.current?.pause()
             setDeadline(Date.now() + answerSeconds * 1000)
           }}>{ar ? 'ابدئي الإجابة · ٣٠ ثانية' : 'Start your answer · 30 seconds'}</Button>

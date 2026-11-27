@@ -43,3 +43,16 @@ The workflow reads the Pages base path from GitHub, builds the static export, an
 NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH=/TALEEK corepack pnpm build
 ```
 
+
+## Optional AI audience questions
+
+The FastAPI service generates a question grounded in the presentation transcript and returns matching synthesized speech. The static site uses its prepared audio questions when the service URL is absent. Start the service locally with Python 3.10 or later.
+
+```sh
+python -m pip install -r backend/requirements.txt
+uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+Set `OPENAI_API_KEY` in the backend environment before starting it. Set `NEXT_PUBLIC_AUDIENCE_API_URL=http://127.0.0.1:8000` in the frontend environment before starting Next.js. The frontend sends the transcript and optional topic after the presenter selects **Generate a question from my talk**.
+
+For hosted use, deploy the service separately over HTTPS, set `TALEEK_WEB_ORIGINS` to the comma-separated allowed frontend origins, and set the public URL at frontend build time. Before exposing the paid endpoint to public traffic, put it behind authentication and a request quota. CORS controls browser access and does not authenticate requests.

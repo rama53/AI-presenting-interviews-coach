@@ -267,7 +267,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           </div>
         </footer>
         {audienceQuestion && (
-          <AudienceQuestion question={audienceQuestion} language={language} onClose={() => {
+          <AudienceQuestion question={audienceQuestion} transcript={speech.transcript} presentationTopic={presentationTopic} language={language} onClose={() => {
             setAudienceQuestion(null)
             togglePause()
           }} onFinish={() => {
