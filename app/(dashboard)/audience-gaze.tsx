@@ -80,9 +80,9 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
     let previousFrame = -1
     const timer = window.setInterval(() => {
       const sample = capture.current
-      if (sample && performance.now() - sample.start > 4000) {
+      if (sample && performance.now() - sample.start > 2200) {
         capture.current = null
-        setCalibrationMessage(ar ? 'الوجه مش واضح كفاية. قرّبي شوي وثبّتي الاتجاه مرة ثانية.' : 'Face not clear enough. Move closer and try again.')
+        setCalibrationMessage(ar ? 'الوجه مش واضح كفاية. عدّلي مكانك وجرّبي هالجهة مرة ثانية.' : 'Face not clear enough. Move closer and try again.')
       }
       const video = preview.current
       const detector = landmarker.current
@@ -93,9 +93,9 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
         const point = points ? facePoint(points) : null
         const pending = capture.current
         if (pending && (pending.zone !== 'slides' || slidesOpen)) {
-          if (!point || performance.now() < pending.start + 650) return
+          if (!point || performance.now() < pending.start + 450) return
           pending.points.push(point)
-          if (pending.points.length < 4) return
+          if (pending.points.length < 3) return
           const sum = pending.points.reduce<[number, number, number, number]>((sum, item) => [
             sum[0] + item[0], sum[1] + item[1], sum[2] + item[2], sum[3] + item[3],
           ], [0, 0, 0, 0])
@@ -112,28 +112,28 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
           const next = audienceZones.find((zone) => !calibration[zone]) ?? null
           setNextZone(next)
           setCalibrated(next === null)
+          if (next) capture.current = { zone: next, points: [], start: performance.now() }
           return
         }
         if (calibrated) counts[point ? classifyGaze(point, calibration, slidesOpen) : 'uncertain']++
       } catch {
         setStatus('unavailable')
       }
-    }, 250)
+    }, 180)
     return () => window.clearInterval(timer)
   }, [ar, calibrated, calibration, counts, paused, preview, slidesOpen, status])
 
   function startCalibration() {
     for (const zone of [...audienceZones, 'slides'] as const) delete calibration[zone]
     Object.assign(counts, { left: 0, center: 0, right: 0, slides: 0, uncertain: 0 })
-    capture.current = null
     setCalibrated(false)
     setNextZone('left')
-    setCalibrationMessage('')
+    captureZone('left')
   }
 
   function captureZone(zone: GazeZone) {
     capture.current = { zone, points: [], start: performance.now() }
-    setCalibrationMessage(ar ? 'ثبّتي نظرك على الجهة لحظة.' : 'Hold your gaze on the target briefly.')
+    setCalibrationMessage(ar ? 'اتبعي النقطة بنظرك. رح تنتقل لحالها.' : 'Follow the dot as it moves on its own.')
   }
 
   return (
@@ -150,7 +150,16 @@ export function AudienceGaze({ preview, calibration, counts, language, paused, s
           {nextZone && (
             <div className="space-y-2">
               <p>{ar ? 'اطلعي باتجاه' : 'Look toward'} <strong>{labels[nextZone]}</strong></p>
-              <button type="button" disabled={paused} className="rounded-lg bg-white/15 px-3 py-2 disabled:opacity-50" onClick={() => captureZone(nextZone)}>{ar ? 'ثبّتي الاتجاه' : 'Capture direction'}</button>
+              {!capture.current && (
+                <button type="button" disabled={paused} className="rounded-lg bg-white/15 px-3 py-2 disabled:opacity-50" onClick={() => captureZone(nextZone)}>
+                  {ar ? 'أعيدي هالجهة' : 'Retry this direction'}
+                </button>
+              )}
+              <button type="button" className="ms-2 rounded-lg px-3 py-2 hover:bg-white/15" onClick={() => {
+                capture.current = null
+                setNextZone(null)
+                setCalibrationMessage('')
+              }}>{ar ? 'كمّلي بدون معايرة' : 'Continue without calibration'}</button>
             </div>
           )}
           {nextZone === null && (
