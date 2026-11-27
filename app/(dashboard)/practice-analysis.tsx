@@ -13,14 +13,14 @@ const labels = {
     start: 'تحويل الصوت إلى نص',
     stop: 'إيقاف المايك',
     listening: 'المايك شغّال…',
-    privacy: 'قد يرسل المتصفح الصوت لخدمة التعرّف على الكلام. بإمكانك تكتبي النص يدويًا.',
-    unavailable: 'التعرّف على الكلام غير متاح. اكتبي النص يدويًا.',
-    error: 'تعذّر تحويل الصوت إلى نص. جرّبي مرة ثانية أو اكتبي النص يدويًا.',
+    privacy: 'قد يرسل المتصفح الصوت لخدمة التعرّف على الكلام. بإمكانك كتابة النص يدويًا.',
+    unavailable: 'التعرّف على الكلام غير متاح. يمكنك كتابة النص يدويًا.',
+    error: 'تعذّر تحويل الصوت إلى نص. يمكن إعادة المحاولة أو كتابة النص يدويًا.',
     analyze: 'حلّل النص',
     followUp: 'سؤال متابعة',
-    notes: 'شو تحسّني؟',
+    notes: 'نقاط للتحسين',
     evidence: 'من كلامك',
-    retry: 'جرّبيها مرة ثانية',
+    retry: 'إعادة المحاولة',
     before: 'ملاحظة على النسخة الأولى',
     compare: 'تحسين النص',
     clear: 'إنهاء المقارنة',
@@ -163,7 +163,7 @@ export function PracticeAnalysis({ language, mode, running, speech, previousAtte
               <h3 className="font-semibold">{ar ? 'شو تحسّن؟' : 'What improved?'}</h3>
               <ul className="list-disc ps-5">{(comparison.improved.length ? comparison.improved : [ar ? 'ما ظهر تحسّن واضح بمعايير الموضوع والمثال.' : 'No clear gain was detected in topic or example.']).map((item) => <li key={item}>{item}</li>)}</ul>
               <h3 className="font-semibold">{ar ? 'شو ضل ناقص؟' : 'What still needs work?'}</h3>
-              <ul className="list-disc ps-5">{(comparison.remaining.length ? comparison.remaining : [ar ? 'الموضوع والمثال موجودين. راجعي إذا المثال بدعم فكرتك.' : 'Topic and example cues are present. Check that the example supports your point.']).map((item) => <li key={item}>{item}</li>)}</ul>
+              <ul className="list-disc ps-5">{(comparison.remaining.length ? comparison.remaining : [ar ? 'الموضوع والمثال موجودين. تحقق من أن المثال بدعم فكرتك.' : 'Topic and example cues are present. Check that the example supports your point.']).map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
           )}
           {!running && firstVersion === null && (
