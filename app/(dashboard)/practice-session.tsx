@@ -6,7 +6,7 @@ import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOf
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
 import { questionsFromJobDescription } from '@/lib/job-interview'
-import { buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
+import { analyzeTranscript, buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
 import { AudienceQuestion } from './audience-question'
 import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
 import { emptyCameraSamples, type CameraSamples } from '@/lib/camera-feedback'
@@ -477,29 +477,45 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
       <h1 ref={heading} tabIndex={-1} id="practice-session-heading" className="text-2xl font-semibold tracking-tight">
         {session.phase === 'finished' ? text.complete : session.phase === 'ready' ? practice.setup : practice.running}
       </h1>
-      {session.phase === 'finished' ? (
-        <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={isInterview ? [...new Set([...practice.criteria, ...interviewText.technicalCriteria])] : practice.criteria} /></div>
-      ) : isInterview ? (
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>
-      ) : null}
-      {session.phase === 'finished' && isInterview && interviewTurns.length > 0 && (
-        <details className="mt-5 rounded-xl border border-border p-4">
-          <summary className="cursor-pointer font-semibold">{language === 'ar' ? 'أسئلة المقابلة وإجاباتك' : 'Interview questions and answers'}</summary>
-          <ol className="mt-3 list-decimal space-y-3 ps-5">
-            {interviewTurns.map(({ question, answer }) => (
-              <li key={question}><p className="font-medium">{question}</p><p dir="auto" className="whitespace-pre-wrap">{answer}</p></li>
-            ))}
-          </ol>
-        </details>
-      )}
-      {session.phase === 'finished' && !isInterview && <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />}
-      {session.phase !== 'ready' && (
-        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? {
-          ...speech,
-          transcript: interviewReportTranscript,
-          setTranscript: (value) => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value),
-        } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} />
-      )}
+      {session.phase === 'finished' && (() => {
+        const ar = language === 'ar'
+        const transcript = isInterview ? interviewReportTranscript : speech.transcript
+        const words = transcript.trim().split(/\s+/).filter(Boolean).length
+        const elapsed = Math.max(0, startedWithSeconds.current - secondsLeft)
+        const turns = [...interviewTurns, ...(isInterview && speech.transcript.trim() ? [{ question: interviewQuestion, answer: speech.transcript }] : [])]
+        const reviews = turns.map((turn, index) => ({ ...turn, result: analyzeTranscript({ transcript: turn.answer, language, mode: index % 3 === 1 ? 'technical' : 'personal' }) }))
+        const overall = analyzeTranscript({ transcript, language, mode: isInterview ? 'personal' : 'presentation', presentationTopic })
+        const notes = [...new Set(isInterview ? reviews.flatMap(r => r.result ? [r.result.note] : []) : overall ? [overall.note] : [])].slice(0, 3)
+        const roles = ar ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
+        const colors = ['bg-[#F8E4CE] text-[#985321]', 'bg-[#E8E3F4] text-[#66518E]', 'bg-[#DDECE3] text-[#35664F]']
+        const stats = [{ label: ar ? 'مدة التدريب التقريبية' : 'Approximate duration', value: Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0') }, { label: isInterview ? (ar ? 'الإجابات' : 'Answers') : (ar ? 'عينات الكاميرا' : 'Camera samples'), value: isInterview ? turns.length : cameraSamples.current.total }, { label: ar ? 'عدد الكلمات' : 'Words', value: words }]
+        return <div className="mt-5 space-y-5 rounded-2xl bg-[#F7F4EE] p-3 text-[#182D43] sm:p-6">
+          <div className="rounded-2xl bg-[#182D43] p-6 text-white">
+            <p className="text-sm font-medium text-[#F4B77C]">{ar ? 'طليق · تقرير الأداء' : 'Taleek · Performance report'}</p>
+            <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{ar ? 'كل محاولة تصنع فرقًا.' : 'Every attempt makes a difference.'}</h2>
+            <p className="mt-2 text-sm text-slate-200">{isInterview ? interview?.jobTitle : presentationTopic || practice.running}</p>
+            <p className="mt-4 border-t border-white/20 pt-3 text-sm text-slate-200">{ar ? 'ملاحظات مبنية على النص وعينات الكاميرا المتاحة، وليست تقييمًا مهنيًا نهائيًا.' : 'Feedback is based on available transcript and camera samples, not a definitive professional assessment.'}</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">{stats.map((stat, i) => <div key={stat.label} className={`rounded-xl p-3 sm:p-5 ${colors[i]}`}><p className="text-2xl font-bold tabular-nums" dir="ltr">{stat.value}</p><p className="mt-2 text-xs font-medium">{stat.label}</p></div>)}</div>
+          <h2 className="text-xl font-bold">{ar ? 'نظرة على أدائك' : 'Performance overview'}</h2>
+          <div className="rounded-xl bg-white p-4">
+            <AssessmentCriteria title={text.assessment} criteria={isInterview ? [...new Set([...practice.criteria, ...interviewText.technicalCriteria])] : practice.criteria} />
+            {overall && <p className="mt-3 rounded-lg bg-[#FCF0E3] p-3 text-sm">{overall.note}</p>}
+            {!overall && <p className="mt-3 text-sm">{ar ? 'لا يوجد نص كافٍ للتحليل.' : 'Not enough transcript for analysis.'}</p>}
+            <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />
+          </div>
+          {isInterview && <><h2 className="text-xl font-bold">{ar ? 'مراجعة الأسئلة والإجابات' : 'Question and answer review'}</h2>
+          {reviews.map((r, i) => <details key={i} open={i === 0} className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold"><span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>{r.question}</summary><div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm"><p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p><p dir="auto" className="whitespace-pre-wrap">{r.answer}</p>{r.result && <>{r.result.evidence && <div className="rounded-lg bg-[#EDF5EF] p-3"><h3 className="font-semibold text-[#35664F]">{ar ? 'من كلامك' : 'Evidence from your answer'}</h3><p>{r.result.evidence}</p></div>}<div className="rounded-lg bg-[#FCF0E3] p-3"><h3 className="font-semibold text-[#985321]">{ar ? 'فرصة للتحسين' : 'Opportunity to improve'}</h3><p>{r.result.note}</p></div><div className="rounded-lg bg-[#F1EEF8] p-3"><h3 className="font-semibold text-[#66518E]">{ar ? 'قالب للتدريب' : 'Practice template'}</h3><p>{r.result.retry}</p></div></>}</div></details>)}</>}
+          <div className="rounded-xl bg-[#E5ECE5] p-5"><h2 className="text-lg font-bold">{ar ? 'خطة التدريب القادمة' : 'Next practice plan'}</h2>{notes.length ? <ol className="mt-3 list-decimal space-y-2 ps-5 text-sm">{notes.map(note => <li key={note}>{note}</li>)}</ol> : <p className="mt-2 text-sm">{ar ? 'سجّل إجابة أو عرضًا للحصول على ملاحظات مخصصة.' : 'Record an answer or presentation for tailored feedback.'}</p>}</div>
+          <details className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold">{ar ? 'النص الكامل والمراجعة' : 'Full transcript and revision'}</summary><PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? { ...speech, transcript: interviewReportTranscript, setTranscript: value => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value) } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} /></details>
+          <Button type="button" variant="outline" onClick={() => {
+            const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.result?.note, r.result?.retry].filter(Boolean).join('\n')), transcript, ...notes].join('\n\n')
+            const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
+            const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+          }}>{ar ? 'حفظ التقرير' : 'Download report'}</Button>
+        </div>
+      })()}
+      {session.phase === 'ready' && isInterview && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
           {!isInterview && (
