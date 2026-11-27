@@ -25,6 +25,7 @@ export async function requestPresentationAI(source: Source, task: 'question' | '
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     const upstream = typeof body?.detail === 'string' ? /^Gemini rejected the request \(HTTP (400|401|403|404)\)$/.exec(body.detail) : null
+    if (body?.detail === 'Gemini returned an incomplete response') throw new Error('gemini-incomplete')
     throw new Error(upstream ? `gemini-${upstream[1]}` : `backend-${response.status}`)
   }
   return response.json()
@@ -69,6 +70,8 @@ export function PresentationAIReview({ source, token }: { source: Source; token:
     connection: ['تعذّر الاتصال بالـBackend. تأكّد أن Uvicorn شغّال على المنفذ 8000.', 'Could not reach the backend. Check that Uvicorn is running on port 8000.'],
     'backend-401': ['الـBackend يطلب تسجيل الدخول للاستخدام.', 'The backend requires sign-in.'],
     'backend-503': ['مفتاح Gemini غير مضبوط في نافذة تشغيل الـBackend.', 'The Gemini API key is missing from the backend environment.'],
+    'backend-504': ['الـBackend شغّال، بس ما قدر يتصل بـGemini. جرّب المراجعة مرة ثانية.', 'The backend is running but could not reach Gemini. Try reviewing again.'],
+    'gemini-incomplete': ['Gemini رجّع مراجعة ناقصة أو بصيغة غير متوقعة. جرّب المراجعة مرة ثانية.', 'Gemini returned an incomplete or unexpected review. Try reviewing again.'],
     'backend-429': ['تم بلوغ حدّ طلبات Gemini. التقييم المحلي متاح.', 'Gemini quota was reached. Local feedback is available.'],
     'gemini-400': ['Gemini رفض إعدادات الطلب (400).', 'Gemini rejected the request settings (400).'],
     'gemini-401': ['Gemini رفض مفتاح الوصول (401).', 'Gemini rejected the credentials (401).'],

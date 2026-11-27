@@ -357,8 +357,18 @@ def analyze_presentation(
     payload = {
         "systemInstruction": {"parts": [{"text": instructions}]},
         "contents": [{"role": "user", "parts": [{"text": data.model_dump_json()}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 4096},
     }
+    if data.task == "review":
+        fields = ("strength", "gap", "next_step")
+        payload["generationConfig"].update({
+            "responseMimeType": "application/json",
+            "responseSchema": {
+                "type": "OBJECT",
+                "properties": {field: {"type": "STRING"} for field in fields},
+                "required": list(fields),
+            },
+        })
     request = Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         data=json.dumps(payload).encode(),
@@ -368,7 +378,11 @@ def analyze_presentation(
     try:
         with urlopen(request, timeout=25) as response:
             result = json.load(response)
-        parts = result["candidates"][0]["content"]["parts"]
+        candidates = result.get("candidates") or []
+        candidate = candidates[0] if candidates else {}
+        parts = candidate.get("content", {}).get("parts", [])
+        if candidate.get("finishReason") == "MAX_TOKENS" or not parts:
+            raise HTTPException(502, "Gemini returned an incomplete response")
         answer = "".join(p["text"] for p in parts if "text" in p and not p.get("thought")).strip()
         if data.task == "question":
             if not answer or len(answer) > 500:
@@ -384,5 +398,8 @@ def analyze_presentation(
         if error.code == 429:
             raise HTTPException(429, "Gemini rate limit reached") from error
         raise HTTPException(502, "Presentation AI service unavailable") from error
-    except (URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError) as error:
-        raise HTTPException(502, "Presentation AI service unavailable") from error
+    except (URLError, TimeoutError) as error:
+        raise HTTPException(504, "Gemini could not be reached") from error
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+        print(f"Gemini presentation response failed validation: {type(error).__name__}", flush=True)
+        raise HTTPException(502, "Gemini returned an incomplete response") from error
