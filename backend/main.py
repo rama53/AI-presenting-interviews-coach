@@ -6,10 +6,10 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 app = FastAPI(title="Taleeq API")
 app.add_middleware(
@@ -95,3 +95,36 @@ def finish_session(session_id: UUID, credentials: HTTPAuthorizationCredentials =
     if not rows or rows[0]["ended_at"] is None:
         raise HTTPException(404, "Session not found or could not be finished")
     return rows[0]
+
+
+class InterviewSpeech(BaseModel):
+    text: str = Field(min_length=1, max_length=600)
+    interviewer: Literal[0, 1, 2]
+    language: Literal["ar", "en"]
+
+
+@app.post("/tts")
+def interview_speech(
+    speech: InterviewSpeech,
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+):
+    if os.getenv("TALEEQ_TTS_LOCAL_TEST") != "1":
+        if credentials is None:
+            raise HTTPException(401, "Sign-in required")
+        supabase_request("/auth/v1/user", credentials.credentials)
+    key = os.getenv("ELEVENLABS_API_KEY")
+    if not key:
+        raise HTTPException(503, "Speech service is not configured")
+    voices = ["pG78raDdMo3wMovvBZyC", "Ba3JsQQHj7eeXb9do3WO", "yj98XMKoIiQ9r3DGZiml"]
+    body = json.dumps({"text": speech.text, "model_id": "eleven_multilingual_v2"}).encode()
+    request = Request(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voices[speech.interviewer]}",
+        data=body,
+        headers={"xi-api-key": key, "Content-Type": "application/json", "Accept": "audio/mpeg"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            return Response(content=response.read(), media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
+    except (HTTPError, URLError, TimeoutError) as error:
+        raise HTTPException(502, "Speech service unavailable") from error
