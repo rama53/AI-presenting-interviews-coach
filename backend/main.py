@@ -262,7 +262,7 @@ def generate_interview_question(
         supabase_request("/auth/v1/user", credentials.credentials)
 
     key = os.getenv("GEMINI_API_KEY")
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     if not key:
         raise HTTPException(503, "AI service is not configured")
 
@@ -280,8 +280,7 @@ def generate_interview_question(
     payload = {
         "systemInstruction": {"parts": [{"text": instructions}]},
         "contents": [{"role": "user", "parts": [{"text": data.model_dump_json()}]}],
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 512,
-                             "thinkingConfig": {"thinkingBudget": 0}},
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048},
     }
     request = Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
