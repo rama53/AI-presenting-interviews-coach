@@ -105,7 +105,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   }, [session, finish, paused])
 
   useEffect(() => {
-    if (session.phase !== 'running' || isInterview) return
+    if (session.phase !== 'running') return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const sync = () => setFullscreen(Boolean(document.fullscreenElement))
@@ -118,7 +118,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   }, [session.phase, isInterview])
 
   useEffect(() => {
-    if (session.phase !== 'running' || isInterview) return
+    if (session.phase !== 'running') return
     return () => {
       generation.current++
       Object.values(streams.current).forEach(stream => stream?.getTracks().forEach(track => track.stop()))
@@ -196,7 +196,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     const file = fields.get('attachment')
     const settings = {
       attachment: file instanceof File && file.name ? file : null,
-      roomOption: Number(fields.get('room-option')),
+      roomOption: isInterview ? 2 : Number(fields.get('room-option')),
     }
     roomSettings.current = settings
     setSession({ phase: 'running', deadline: Date.now() + duration * 1000, ...settings })
@@ -226,11 +226,13 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const minutes = Math.floor(secondsLeft / 60)
   const seconds = String(secondsLeft % 60).padStart(2, '0')
 
-  if (session.phase === 'running' && !isInterview) {
+  if (session.phase === 'running') {
     const ar = /[\u0600-\u06ff]/.test(practice.running)
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
-        {session.roomOption === 1 ? (
+        {isInterview ? (
+          <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/interview-panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="absolute inset-0 h-full w-full object-contain object-center" />
+        ) : session.roomOption === 1 ? (
           <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-large.png`} alt={ar ? 'جمهور كبير' : 'Large audience'} className="absolute inset-0 h-full w-full object-cover object-center" />
         ) : (
           <>
@@ -268,23 +270,24 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             ? (ar ? 'التفريغ غير متاح. اكتبي النص بعد إنهاء التدريب.' : 'Transcription unavailable. Type your transcript after ending practice.')
             : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
+        {isInterview && <div className="absolute inset-x-4 bottom-32 mx-auto max-w-2xl rounded-2xl border border-white/20 bg-[#142332]/95 p-4 text-center shadow-xl"><p className="mb-1 text-xs text-amber-200">{isTechnical ? (ar ? "المحاور التقني" : "Technical interviewer") : (ar ? "محاور الموارد البشرية" : "HR interviewer")}</p><p className="text-base font-medium">{isTechnical ? interviewText.technicalPrompt : practice.prompt}</p></div>}
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
               { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy) speech.startMicrophone() } },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
-              { label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) },
+              ...(!isInterview ? [{ label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) }] : []),
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: () => { setPreparingQuestion(false); togglePause() } },
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
             <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
-            <button type="button" disabled={paused} onClick={() => {
+            {!isInterview && <button type="button" disabled={paused} onClick={() => {
               setPreparingQuestion(true)
               togglePause()
             }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
               {preparingQuestion
                 ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…')
                 : (ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions')}
-            </button>
+            </button>}
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
           </div>
@@ -392,12 +395,14 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               </div>
             </div>
           )}
+          {!isInterview && (
           <div className="mb-4">
             <label htmlFor="room-option" className="block text-sm font-medium">{roomLabel}</label>
             <select id="room-option" name="room-option" defaultValue={0} className={fieldClass}>
               {roomOptions.map((label, index) => <option key={index} value={index}>{label}</option>)}
             </select>
           </div>
+          )}
           <div className="mb-4">
             <label htmlFor="session-minutes" className="block text-sm font-medium">{text.duration}</label>
             <input
