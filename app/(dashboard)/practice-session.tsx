@@ -231,7 +231,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
         {isInterview ? (
-          <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/interview-panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="absolute inset-0 h-full w-full object-contain object-center" />
+          <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="absolute inset-0 h-full w-full object-contain object-center" />
         ) : session.roomOption === 1 ? (
           <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-large.png`} alt={ar ? 'جمهور كبير' : 'Large audience'} className="absolute inset-0 h-full w-full object-cover object-center" />
         ) : (
@@ -312,40 +312,12 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
       </h1>
       {session.phase === 'finished' ? (
         <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={isTechnical ? interviewText.technicalCriteria : practice.criteria} /></div>
-      ) : (
-        <>
-          {(session.phase === 'running' || isInterview) && (
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              {session.phase === 'ready' ? interviewText.intro : isTechnical ? interviewText.technicalPrompt : practice.prompt}
-            </p>
-          )}
-          {session.phase === 'running' && interview && (
-            <div className="mt-4 rounded-lg border border-border bg-background p-3 text-sm">
-              <p className="font-semibold wrap-anywhere" dir="auto">{interview.jobTitle}</p>
-              <p className="text-muted-foreground">{interviewText[interview.type]}</p>
-              {interview.jobDescription && <p className="mt-2 whitespace-pre-wrap wrap-anywhere text-muted-foreground" dir="auto">{interview.jobDescription}</p>}
-            </div>
-          )}
-          {session.phase === 'running' && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {roomLabel}: <span className="font-medium text-foreground">{roomOptions[session.roomOption]}</span>
-            </p>
-          )}
-          {session.phase === 'running' && session.attachment && (
-            <p className="mt-3 wrap-anywhere text-sm text-muted-foreground">
-              {text.attachedFile}: <bdi className="font-medium text-foreground">{session.attachment.name}</bdi>
-            </p>
-          )}
-          {session.phase === 'running' && (
-            <p role="timer" aria-label={text.remaining} className="mt-4 text-3xl font-semibold tabular-nums">
-              <bdi dir="ltr">{minutes}:{seconds}</bdi>
-            </p>
-          )}
-        </>
-      )}
+      ) : isInterview ? (
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>
+      ) : null}
       {session.phase === 'finished' && !isInterview && <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />}
       {session.phase !== 'ready' && (
-        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
+        <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={false} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
@@ -437,12 +409,6 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         </form>
       ) : (
         <div className="mt-5 flex flex-wrap gap-2">
-          {session.phase === 'running' && (
-            <>
-              {!isInterview && <Button type="button" variant="outline" onClick={togglePause}>{paused ? 'Resume / استئناف' : 'Pause / إيقاف مؤقت'}</Button>}
-              <Button type="button" onClick={finish}>{text.finish}</Button>
-            </>
-          )}
           {session.phase === 'finished' && !isInterview && (
             <Button type="button" disabled={speech.busy} onClick={retryPresentation}>
               {language === 'ar' ? 'محاولة مرة أخرى' : 'Try the presentation again'}
