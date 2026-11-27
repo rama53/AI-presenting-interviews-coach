@@ -116,3 +116,8 @@ export function audienceAnswerTip(answer: string, language: Language) {
   if (!answer.trim()) return 'Time ended without a typed or transcribed answer.'
   return hasExample ? 'You introduced an example. Check that it answers the question directly.' : 'Try adding a concrete example after your opening sentence.'
 }
+
+export function invitesAudienceQuestions(transcript: string) {
+  const clean = transcript.normalize('NFD').replace(/\p{M}/gu, '').replace(/[؟?!.،,]/g, ' ').replace(/\s+/g, ' ')
+  return /(?:في (?:اي )?(?:اس[ئي]لة|استفسار)|(?:حد|احد|حدا) (?:عنده|بده|حاب|حابب) (?:يسال|يستفسر|سوال|استفسار)|(?:عندكم|عندكن) (?:اي )?(?:اس[ئي]لة|سوال|استفسار)|باب الاس[ئي]لة|any questions|anyone (?:have|has|want to ask) (?:a question|any questions)|questions from the audience)/iu.test(clean)
+}
