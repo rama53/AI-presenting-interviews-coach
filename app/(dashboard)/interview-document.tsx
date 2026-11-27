@@ -27,16 +27,16 @@ export function InterviewDocument({ kind, language, onText, onLoading }: {
       const text = await readPracticeDocument(file, 4000)
       if (id !== request.current) return
       if (!text) {
-        setMessage(ar ? 'ما قدرنا نقرأ نص من الملف. إذا كان صورة، استخدمي نسخة فيها نص قابل للتحديد.' : 'No text could be read. For scanned documents, choose a copy with selectable text.')
+        setMessage(ar ? 'ما قدرنا نقرأ نص من الملف. إذا كان صورة، يمكن استخدام نسخة فيها نص قابل للتحديد.' : 'No text could be read. For scanned documents, choose a copy with selectable text.')
         return
       }
       onText(text)
       setMessage(kind === 'job'
-        ? (ar ? 'انقرأ الملف. راجعي النص المضاف إلى وصف الوظيفة.' : 'File read. Review the extracted text in the job description.')
+        ? (ar ? 'انقرأ الملف. يمكنك مراجعة النص المضاف إلى وصف الوظيفة.' : 'File read. Review the extracted text in the job description.')
         : (ar ? 'انقرأ الـCV. ممكن تدخل المهارات اللي اتعرّف عليها التطبيق ضمن أسئلة المقابلة.' : 'CV read. Recognized skills can inform interview questions.'))
     } catch {
       if (id !== request.current) return
-      setMessage(ar ? 'تعذّرت قراءة الملف. جرّبي PDF أو DOCX بحجم أقل من ١٢ ميغابايت.' : 'Could not read the file. Try a PDF or DOCX under 12 MB.')
+      setMessage(ar ? 'تعذّرت قراءة الملف. يمكن استخدام PDF أو DOCX بحجم أقل من ١٢ ميغابايت.' : 'Could not read the file. Try a PDF or DOCX under 12 MB.')
     } finally {
       if (id === request.current) onLoading(false)
     }
