@@ -673,7 +673,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           {!isInterview && presentationAIAvailable && (
             <label className="mb-4 flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={usePresentationAI} onChange={(event) => setUsePresentationAI(event.target.checked)} />
-              {language === 'ar' ? 'ولّد سؤال الجمهور باستخدام Groq. عند بدء الأسئلة، سيُرسل نص العرض والشرائح.' : 'Generate the audience question with Groq. Starting Q&A sends the transcript and slide text.'}
+              {language === 'ar' ? 'ولّد سؤال الجمهور باستخدام Gemini. عند بدء الأسئلة، سيُرسل نص العرض والشرائح.' : 'Generate the audience question with Gemini. Starting Q&A sends the transcript and slide text.'}
             </label>
           )}
           {isInterview && (

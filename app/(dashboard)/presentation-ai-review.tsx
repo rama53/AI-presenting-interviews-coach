@@ -60,7 +60,7 @@ export function PresentationAIReview({ source, token }: { source: Source; token:
   return (
     <section className="mt-4 space-y-3 border-t border-slate-200 pt-4 text-sm">
       <h3 className="text-base font-semibold">{ar ? 'مراجعة الشرح بالذكاء الاصطناعي' : 'AI review of your explanation'}</h3>
-      <p>{ar ? 'عند طلب المراجعة، يُرسل نص العرض والشرائح إلى Groq.' : 'Requesting a review sends the transcript and slide text to Groq.'}</p>
+      <p>{ar ? 'عند طلب المراجعة، يُرسل نص العرض والشرائح إلى Gemini.' : 'Requesting a review sends the transcript and slide text to Gemini.'}</p>
       <Button type="button" variant="outline" disabled={status === 'loading'} onClick={analyze}>
         {status === 'loading' ? (ar ? 'جاري المراجعة…' : 'Reviewing…') : (ar ? 'راجع الشرح' : 'Review my explanation')}
       </Button>

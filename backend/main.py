@@ -332,8 +332,8 @@ def analyze_presentation(
     ) or any(len(slide) > 1500 for slide in data.slides):
         raise HTTPException(422, "A usable presentation transcript or slide text is required")
 
-    key = os.getenv("GROQ_API_KEY")
-    model = os.getenv("TALEEK_PRESENTATION_GROQ_MODEL", "openai/gpt-oss-20b")
+    key = os.getenv("GEMINI_API_KEY")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     if not key:
         raise HTTPException(503, "AI service is not configured")
 
@@ -346,7 +346,7 @@ def analyze_presentation(
     if data.task == "question":
         instructions += (
             "Ask one concise audience question about a specific detail from the transcript or slides. "
-            "Return a JSON object with a question field."
+            "Return only the question as plain text, without markdown."
         )
     else:
         instructions += (
@@ -355,49 +355,32 @@ def analyze_presentation(
             "Return only a JSON object with string keys strength, gap, next_step, without markdown."
         )
     payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": instructions},
-            {"role": "user", "content": data.model_dump_json()},
-        ],
-        "temperature": 0.4,
-        "max_completion_tokens": 2048,
-    }
-    fields = ["question"] if data.task == "question" else ["strength", "gap", "next_step"]
-    payload["response_format"] = {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "presentation_result",
-            "strict": True,
-            "schema": {
-                "type": "object",
-                "properties": {field: {"type": "string"} for field in fields},
-                "required": fields,
-                "additionalProperties": False,
-            },
-        },
+        "systemInstruction": {"parts": [{"text": instructions}]},
+        "contents": [{"role": "user", "parts": [{"text": data.model_dump_json()}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
     }
     request = Request(
-        "https://api.groq.com/openai/v1/chat/completions",
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         data=json.dumps(payload).encode(),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        headers={"x-goog-api-key": key, "Content-Type": "application/json"},
         method="POST",
     )
     try:
         with urlopen(request, timeout=25) as response:
             result = json.load(response)
-        answer = json.loads(result["choices"][0]["message"]["content"])
+        parts = result["candidates"][0]["content"]["parts"]
+        answer = "".join(p["text"] for p in parts if "text" in p and not p.get("thought")).strip()
         if data.task == "question":
-            question = answer["question"].strip()
-            if not question or len(question) > 500:
+            if not answer or len(answer) > 500:
                 raise ValueError("Invalid question")
-            return {"question": question}
-        return PresentationReview.model_validate(answer)
+            return {"question": answer}
+        if answer.startswith("```") and answer.endswith("```"):
+            answer = answer.partition("\n")[2][:-3].strip()
+        return PresentationReview.model_validate_json(answer)
     except HTTPError as error:
-        print(f"Groq presentation request rejected: HTTP {error.code}", flush=True)
+        print(f"Gemini presentation request rejected: HTTP {error.code}", flush=True)
         if error.code == 429:
-            raise HTTPException(429, "Groq rate limit reached") from error
+            raise HTTPException(429, "Gemini rate limit reached") from error
         raise HTTPException(502, "Presentation AI service unavailable") from error
-    except (URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
-        print(f"Groq presentation request failed: {type(error).__name__}", flush=True)
+    except (URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError) as error:
         raise HTTPException(502, "Presentation AI service unavailable") from error
