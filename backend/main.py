@@ -332,8 +332,8 @@ def analyze_presentation(
     ) or any(len(slide) > 1500 for slide in data.slides):
         raise HTTPException(422, "A usable presentation transcript or slide text is required")
 
-    key = os.getenv("GEMINI_API_KEY")
-    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+    key = os.getenv("GROQ_API_KEY")
+    model = os.getenv("TALEEK_PRESENTATION_GROQ_MODEL", "openai/gpt-oss-20b")
     if not key:
         raise HTTPException(503, "AI service is not configured")
 
@@ -346,7 +346,7 @@ def analyze_presentation(
     if data.task == "question":
         instructions += (
             "Ask one concise audience question about a specific detail from the transcript or slides. "
-            "Return only the question as plain text, without markdown."
+            "Return a JSON object with a question field."
         )
     else:
         instructions += (
@@ -355,51 +355,49 @@ def analyze_presentation(
             "Return only a JSON object with string keys strength, gap, next_step, without markdown."
         )
     payload = {
-        "systemInstruction": {"parts": [{"text": instructions}]},
-        "contents": [{"role": "user", "parts": [{"text": data.model_dump_json()}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 4096},
+        "model": model,
+        "messages": [
+            {"role": "system", "content": instructions},
+            {"role": "user", "content": data.model_dump_json()},
+        ],
+        "temperature": 0.4,
+        "max_completion_tokens": 2048,
     }
-    if data.task == "review":
-        fields = ("strength", "gap", "next_step")
-        payload["generationConfig"].update({
-            "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "OBJECT",
-                "properties": {field: {"type": "STRING"} for field in fields},
-                "required": list(fields),
+    fields = ["question"] if data.task == "question" else ["strength", "gap", "next_step"]
+    payload["response_format"] = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "presentation_result",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {field: {"type": "string"} for field in fields},
+                "required": fields,
+                "additionalProperties": False,
             },
-        })
+        },
+    }
     request = Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        "https://api.groq.com/openai/v1/chat/completions",
         data=json.dumps(payload).encode(),
-        headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         method="POST",
     )
     try:
         with urlopen(request, timeout=25) as response:
             result = json.load(response)
-        candidates = result.get("candidates") or []
-        candidate = candidates[0] if candidates else {}
-        parts = candidate.get("content", {}).get("parts", [])
-        if candidate.get("finishReason") == "MAX_TOKENS" or not parts:
-            raise HTTPException(502, "Gemini returned an incomplete response")
-        answer = "".join(p["text"] for p in parts if "text" in p and not p.get("thought")).strip()
+        answer = json.loads(result["choices"][0]["message"]["content"])
         if data.task == "question":
-            if not answer or len(answer) > 500:
+            question = answer["question"].strip()
+            if not question or len(question) > 500:
                 raise ValueError("Invalid question")
-            return {"question": answer}
-        if answer.startswith("```") and answer.endswith("```"):
-            answer = answer.partition("\n")[2][:-3].strip()
-        return PresentationReview.model_validate_json(answer)
+            return {"question": question}
+        return PresentationReview.model_validate(answer)
     except HTTPError as error:
-        print(f"Gemini presentation request rejected: HTTP {error.code}", flush=True)
-        if error.code in (400, 401, 403, 404):
-            raise HTTPException(502, f"Gemini rejected the request (HTTP {error.code})") from error
+        print(f"Groq presentation request rejected: HTTP {error.code}", flush=True)
         if error.code == 429:
-            raise HTTPException(429, "Gemini rate limit reached") from error
+            raise HTTPException(429, "Groq rate limit reached") from error
+        raise HTTPException(502, f"Groq rejected the request (HTTP {error.code})") from error
+    except (URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+        print(f"Groq presentation request failed: {type(error).__name__}", flush=True)
         raise HTTPException(502, "Presentation AI service unavailable") from error
-    except (URLError, TimeoutError) as error:
-        raise HTTPException(504, "Gemini could not be reached") from error
-    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
-        print(f"Gemini presentation response failed validation: {type(error).__name__}", flush=True)
-        raise HTTPException(502, "Gemini returned an incomplete response") from error

@@ -24,9 +24,9 @@ export async function requestPresentationAI(source: Source, task: 'question' | '
   })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    const upstream = typeof body?.detail === 'string' ? /^Gemini rejected the request \(HTTP (400|401|403|404)\)$/.exec(body.detail) : null
-    if (body?.detail === 'Gemini returned an incomplete response') throw new Error('gemini-incomplete')
-    throw new Error(upstream ? `gemini-${upstream[1]}` : `backend-${response.status}`)
+    const upstream = typeof body?.detail === 'string' ? /^Groq rejected the request \(HTTP (400|401|403|404)\)$/.exec(body.detail) : null
+    if (body?.detail === 'Groq returned an incomplete response') throw new Error('groq-incomplete')
+    throw new Error(upstream ? `groq-${upstream[1]}` : `backend-${response.status}`)
   }
   return response.json()
 }
@@ -69,21 +69,21 @@ export function PresentationAIReview({ source, token }: { source: Source; token:
   const messages: Record<string, [string, string]> = {
     connection: ['تعذّر الاتصال بالـBackend. تأكّد أن Uvicorn شغّال على المنفذ 8000.', 'Could not reach the backend. Check that Uvicorn is running on port 8000.'],
     'backend-401': ['الـBackend يطلب تسجيل الدخول للاستخدام.', 'The backend requires sign-in.'],
-    'backend-503': ['مفتاح Gemini غير مضبوط في نافذة تشغيل الـBackend.', 'The Gemini API key is missing from the backend environment.'],
-    'backend-504': ['الـBackend شغّال، بس ما قدر يتصل بـGemini. جرّب المراجعة مرة ثانية.', 'The backend is running but could not reach Gemini. Try reviewing again.'],
-    'gemini-incomplete': ['Gemini رجّع مراجعة ناقصة أو بصيغة غير متوقعة. جرّب المراجعة مرة ثانية.', 'Gemini returned an incomplete or unexpected review. Try reviewing again.'],
-    'backend-429': ['تم بلوغ حدّ طلبات Gemini. التقييم المحلي متاح.', 'Gemini quota was reached. Local feedback is available.'],
-    'gemini-400': ['Gemini رفض إعدادات الطلب (400).', 'Gemini rejected the request settings (400).'],
-    'gemini-401': ['Gemini رفض مفتاح الوصول (401).', 'Gemini rejected the credentials (401).'],
-    'gemini-403': ['Gemini رفض الوصول للمشروع أو الموديل (403).', 'Gemini denied access to the project or model (403).'],
-    'gemini-404': ['موديل Gemini غير موجود أو غير متاح للمشروع (404).', 'The Gemini model was not found or is unavailable for this project (404).'],
-    TimeoutError: ['انتهت مهلة طلب Gemini.', 'The Gemini request timed out.'],
+    'backend-503': ['مفتاح Groq غير مضبوط في نافذة تشغيل الـBackend.', 'The Groq API key is missing from the backend environment.'],
+    'backend-504': ['الـBackend شغّال، بس ما قدر يتصل بـGroq. جرّب المراجعة مرة ثانية.', 'The backend is running but could not reach Groq. Try reviewing again.'],
+    'groq-incomplete': ['Groq رجّع مراجعة ناقصة أو بصيغة غير متوقعة. جرّب المراجعة مرة ثانية.', 'Groq returned an incomplete or unexpected review. Try reviewing again.'],
+    'backend-429': ['تم بلوغ حدّ طلبات Groq. التقييم المحلي متاح.', 'Groq quota was reached. Local feedback is available.'],
+    'groq-400': ['Groq رفض إعدادات الطلب (400).', 'Groq rejected the request settings (400).'],
+    'groq-401': ['Groq رفض مفتاح الوصول (401).', 'Groq rejected the credentials (401).'],
+    'groq-403': ['Groq رفض الوصول للمشروع أو الموديل (403).', 'Groq denied access to the project or model (403).'],
+    'groq-404': ['موديل Groq غير موجود أو غير متاح للمشروع (404).', 'The Groq model was not found or is unavailable for this project (404).'],
+    TimeoutError: ['انتهت مهلة طلب Groq.', 'The Groq request timed out.'],
   }
   const message = messages[errorCode]?.[ar ? 0 : 1]
   return (
     <section className="mt-4 space-y-3 border-t border-slate-200 pt-4 text-sm">
       <h3 className="text-base font-semibold">{ar ? 'مراجعة الشرح بالذكاء الاصطناعي' : 'AI review of your explanation'}</h3>
-      <p>{ar ? 'عند طلب المراجعة، يُرسل نص العرض والشرائح إلى Gemini.' : 'Requesting a review sends the transcript and slide text to Gemini.'}</p>
+      <p>{ar ? 'عند طلب المراجعة، يُرسل نص العرض والشرائح إلى Groq.' : 'Requesting a review sends the transcript and slide text to Groq.'}</p>
       <Button type="button" variant="outline" disabled={status === 'loading'} onClick={analyze}>
         {status === 'loading' ? (ar ? 'جاري المراجعة…' : 'Reviewing…') : (ar ? 'راجع الشرح' : 'Review my explanation')}
       </Button>
