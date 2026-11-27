@@ -98,6 +98,27 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     [cvText, interview, language],
   )
   const interviewQuestion = interviewFollowUp ?? jobQuestions[0] ?? (isTechnical ? interviewText.technicalPrompt : practice.prompt)
+  const [speakingInterviewer, setSpeakingInterviewer] = useState(false)
+  const activeInterviewer = (interviewTurns.length + (isTechnical ? 1 : 0)) % 3
+  const interviewerRoles = language === 'ar' ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
+  useEffect(() => {
+    if (!isInterview || session.phase !== 'running' || paused || interviewComplete || !('speechSynthesis' in window)) return
+    const synth = window.speechSynthesis
+    const utterance = new SpeechSynthesisUtterance(interviewQuestion)
+    utterance.lang = language === 'ar' ? 'ar' : 'en-US'
+    const voices = synth.getVoices().filter(v => v.lang.toLowerCase().startsWith(utterance.lang.split('-')[0]))
+    const preferred = activeInterviewer === 0 ? voices.find(v => /female|zira|samantha|salma|hoda/i.test(v.name)) : voices.find(v => /male|david|daniel|naayf|maj ed/i.test(v.name) && !/female/i.test(v.name))
+    const voice = activeInterviewer === 2 ? voices.find(v => v !== preferred && !/female|zira|samantha|salma|hoda/i.test(v.name)) ?? preferred : preferred ?? voices[activeInterviewer % Math.max(voices.length, 1)]
+    if (voice) utterance.voice = voice
+    utterance.pitch = [1.12, 0.95, 0.78][activeInterviewer]
+    utterance.rate = [0.95, 1, 0.9][activeInterviewer]
+    utterance.onstart = () => setSpeakingInterviewer(true)
+    utterance.onend = utterance.onerror = () => setSpeakingInterviewer(false)
+    synth.cancel()
+    synth.speak(utterance)
+    return () => { utterance.onstart = utterance.onend = utterance.onerror = null; synth.cancel(); setSpeakingInterviewer(false) }
+  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer])
+
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
@@ -288,7 +309,14 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
         {isInterview ? (
-          <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="absolute inset-0 h-full w-full object-contain object-center" />
+          <div className="absolute inset-0 flex items-start justify-center pt-20 pb-64">
+            <div className="relative h-full max-w-full aspect-[3/2]">
+              <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="h-full w-full object-contain" />
+              <div dir="ltr" className="absolute inset-x-0 bottom-0 grid grid-cols-3 gap-1 text-center">
+                {interviewerRoles.map((role, index) => <span key={role} className={`mx-auto rounded-lg px-2 py-1 text-xs font-semibold ${index === activeInterviewer && !interviewComplete ? 'bg-amber-300 text-slate-900' : 'bg-black/75 text-white'}`}>{role}{index === activeInterviewer && speakingInterviewer ? (ar ? ' · يتحدث' : ' · Speaking') : ''}</span>)}
+              </div>
+            </div>
+          </div>
         ) : session.roomOption === 1 ? (
           <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-large.png`} alt={ar ? 'جمهور كبير' : 'Large audience'} className="absolute inset-0 h-full w-full object-cover object-center" />
         ) : (
@@ -350,7 +378,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               <p role="status">{ar ? 'خلصت أسئلة هالمقابلة. اضغطي «إنهاء التدريب» حتى تشوفي إجاباتك.' : 'All questions are complete. End the session to review your answers.'}</p>
             ) : (
               <>
-                <p className="text-xs text-amber-200">{ar ? 'السؤال' : 'Question'} {interviewTurns.length + 1} · {isTechnical ? (ar ? 'المحاور التقني' : 'Technical interviewer') : (ar ? 'محاور الموارد البشرية' : 'HR interviewer')}</p>
+                <p className="text-xs text-amber-200">{ar ? 'السؤال' : 'Question'} {interviewTurns.length + 1} · {interviewerRoles[activeInterviewer]}</p>
                 <p aria-live="polite" className="font-medium">{interviewQuestion}</p>
                 <label className="block text-sm">
                   {ar ? 'جوابك' : 'Your answer'}
@@ -369,7 +397,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
-              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy && !submittingInterviewAnswer && !interviewComplete) speech.startMicrophone() } },
+              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy && !submittingInterviewAnswer && !interviewComplete && !speakingInterviewer) speech.startMicrophone() } },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               ...(!isInterview ? [{ label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) }] : []),
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: () => { setPreparingQuestion(false); togglePause() } },
