@@ -25,7 +25,7 @@ const fieldClass = 'mt-1.5 block w-full rounded-lg border border-input bg-backgr
 
 type Session =
   | { phase: 'ready' }
-  | { phase: 'running'; deadline: number; attachment: File | null }
+  | { phase: 'running'; deadline: number; attachment: File | null; roomOption: number }
   | { phase: 'finished' }
 
 export function PracticeSession({ practice, text, isInterview, onClose, onComplete }: {
@@ -39,6 +39,8 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [interview, setInterview] = useState<InterviewDetails | null>(null)
   const interviewText = text.interviewSetup
+  const roomLabel = isInterview ? text.interviewPanel : text.audienceSize
+  const roomOptions = isInterview ? text.interviewPanelOptions : text.audienceOptions
   const isTechnical = interview?.type === 'technical'
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
@@ -84,6 +86,7 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
       phase: 'running',
       deadline: Date.now() + duration * 1000,
       attachment: file instanceof File && file.name ? file : null,
+      roomOption: Number(fields.get('room-option')),
     })
   }
 
@@ -110,6 +113,11 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
               <p className="text-muted-foreground">{interviewText[interview.type]}</p>
               {interview.jobDescription && <p className="mt-2 whitespace-pre-wrap wrap-anywhere text-muted-foreground" dir="auto">{interview.jobDescription}</p>}
             </div>
+          )}
+          {session.phase === 'running' && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {roomLabel}: <span className="font-medium text-foreground">{roomOptions[session.roomOption]}</span>
+            </p>
           )}
           {session.phase === 'running' && session.attachment && (
             <p className="mt-3 wrap-anywhere text-sm text-muted-foreground">
@@ -165,6 +173,12 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
               </div>
             </div>
           )}
+          <div className="mb-4">
+            <label htmlFor="room-option" className="block text-sm font-medium">{roomLabel}</label>
+            <select id="room-option" name="room-option" defaultValue={0} className={fieldClass}>
+              {roomOptions.map((label, index) => <option key={index} value={index}>{label}</option>)}
+            </select>
+          </div>
           <div className="mb-4">
             <label htmlFor="session-minutes" className="block text-sm font-medium">{text.duration}</label>
             <input
