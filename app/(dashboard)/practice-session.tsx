@@ -218,12 +218,12 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
           {speech.status === 'unavailable' || speech.status === 'error'
             ? (ar ? 'التفريغ غير متاح. اكتبي النص بعد إنهاء التدريب.' : 'Transcription unavailable. Type your transcript after ending practice.')
-            : (ar ? 'قد يرسل المتصفح الصوت لخدمة التفريغ عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
+            : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
-              { label: ar ? 'المايك للتفريغ' : 'Transcription mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy) speech.startMicrophone() } },
+              { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy) speech.startMicrophone() } },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               { label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) },
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
