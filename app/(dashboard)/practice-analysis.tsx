@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { analyzeTranscript, type AnalysisMode } from '@/lib/transcript-analysis'
+import { analyzeTranscript, buildAudienceQuestion, comparePresentations, type AnalysisMode } from '@/lib/transcript-analysis'
+import { AudienceQuestion } from './audience-question'
+import { usePracticeTranscript } from './use-practice-transcript'
 import type { Language } from './copy'
-import type { usePracticeTranscript } from './use-practice-transcript'
 
 const labels = {
   ar: {
@@ -22,7 +23,7 @@ const labels = {
     evidence: 'من كلامك',
     retry: 'جرّبيها مرة ثانية',
     before: 'ملاحظة على النسخة الأولى',
-    compare: 'جرّبي تحسين النص',
+    compare: 'محاولة مرة أخرى',
     clear: 'إنهاء المقارنة',
     save: 'حفظ النص الجديد',
     saved: 'تم حفظ النص الجديد وتحديث التحليل.',
@@ -43,7 +44,7 @@ const labels = {
     evidence: 'From your transcript',
     retry: 'Try it again',
     before: 'Feedback on your first version',
-    compare: 'Try revising your text',
+    compare: 'Try again',
     clear: 'End comparison',
     save: 'Save revised transcript',
     saved: 'Revised transcript saved and analysis updated.',
@@ -59,13 +60,21 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
 }) {
   const text = labels[language]
   const [firstVersion, setFirstVersion] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
+  const retrySpeech = usePracticeTranscript(language)
+  const { transcript: draft, setTranscript: setDraft } = retrySpeech
+  const [retryStarted, setRetryStarted] = useState(false)
+  const [audienceQuestion, setAudienceQuestion] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const { transcript, setTranscript, status, busy, startMicrophone, stopMicrophone } = speech
   const result = showAnalysis || !running ? analyzeTranscript({ transcript, language, mode }) : null
 
   const firstResult = firstVersion === null ? null : analyzeTranscript({ transcript: firstVersion, language, mode })
+
+  const ar = language === 'ar'
+  const comparison = saved && firstVersion !== null && mode === 'presentation'
+    ? comparePresentations(firstVersion, transcript, language)
+    : null
 
   return (
     <section className="mt-5 space-y-3 rounded-xl border border-border bg-background p-4">
@@ -80,17 +89,37 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
           value={firstVersion === null ? transcript : draft}
           onChange={(event) => {
             if (firstVersion === null) setTranscript(event.target.value)
-            else setDraft(event.target.value)
+            else {
+              setDraft(event.target.value)
+              setRetryStarted(true)
+            }
             setSaved(false)
             setShowAnalysis(false)
           }}
         />
       </label>
       {firstVersion !== null && (
-        <Button type="button" disabled={!draft.trim() || draft === transcript} onClick={() => {
+        <Button type="button" disabled={!draft.trim() || draft === transcript || retrySpeech.busy} onClick={() => {
           setTranscript(draft)
           setSaved(true)
         }}>{text.save}</Button>
+      )}
+      {firstVersion !== null && (
+        <>
+          <Button type="button" variant="outline" disabled={retrySpeech.status === 'stopping' || audienceQuestion !== null} onClick={() => {
+            if (retrySpeech.busy) retrySpeech.stopMicrophone()
+            else {
+              if (!retryStarted) {
+                setDraft('')
+                setRetryStarted(true)
+              }
+              setSaved(false)
+              retrySpeech.startMicrophone()
+            }
+          }}>{retrySpeech.busy ? text.stop : text.start}</Button>
+          <p className="text-sm text-muted-foreground">{text.privacy}</p>
+          {(retrySpeech.status === 'error' || retrySpeech.status === 'unavailable') && <p role="status">{text.error}</p>}
+        </>
       )}
       {saved && <p role="status" className="text-sm">{text.saved}</p>}
       {running && (
@@ -128,10 +157,24 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
             <h3 className="font-semibold">{text.retry}</h3>
             <p className="mt-1">{result.retry}</p>
           </div>
+          {comparison && (
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <h3 className="font-semibold">{ar ? 'شو تحسّن؟' : 'What improved?'}</h3>
+              <ul className="list-disc ps-5">{(comparison.improved.length ? comparison.improved : [ar ? 'ما ظهر تحسّن واضح بمعايير الموضوع والمثال.' : 'No clear gain was detected in topic or example.']).map((item) => <li key={item}>{item}</li>)}</ul>
+              <h3 className="font-semibold">{ar ? 'شو ضل ناقص؟' : 'What still needs work?'}</h3>
+              <ul className="list-disc ps-5">{(comparison.remaining.length ? comparison.remaining : [ar ? 'الموضوع والمثال موجودين. راجعي إذا المثال بدعم فكرتك.' : 'Topic and example cues are present. Check that the example supports your point.']).map((item) => <li key={item}>{item}</li>)}</ul>
+            </div>
+          )}
+          {!running && mode === 'presentation' && audienceQuestion === null && (
+            <Button type="button" variant="outline" disabled={busy || retrySpeech.busy} onClick={() => setAudienceQuestion(buildAudienceQuestion(transcript, language))}>
+              {ar ? 'سؤال من الجمهور' : 'Audience question'}
+            </Button>
+          )}
           {!running && firstVersion === null && (
             <Button type="button" variant="outline" onClick={() => {
               setFirstVersion(transcript)
               setDraft(transcript)
+              setRetryStarted(false)
               setSaved(false)
               document.getElementById('practice-transcript')?.focus()
             }}>{text.compare}</Button>
@@ -142,6 +185,7 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
               <blockquote className="my-2 whitespace-pre-wrap" dir="auto">{firstVersion}</blockquote>
               <p>{firstResult.note}</p>
               <Button className="mt-2" type="button" variant="outline" onClick={() => {
+                retrySpeech.stopMicrophone()
                 setFirstVersion(null)
                 setSaved(false)
               }}>{text.clear}</Button>
@@ -149,6 +193,7 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
           )}
         </div>
       )}
+      {audienceQuestion && <AudienceQuestion question={audienceQuestion} language={language} onClose={() => setAudienceQuestion(null)} />}
     </section>
   )
 }

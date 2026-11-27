@@ -69,3 +69,50 @@ export function analyzeTranscript({ transcript, language, mode }: Input) {
   const evidence = rule ? transcript.match(rule.cue)?.[0] : mode === 'presentation' ? transcript.match(topicCue)?.[0].slice(0, 96) : undefined
   return { wordCount: words.length, followUp, note, retry, evidence }
 }
+
+const exampleCue = /(?:مثلا|مثلًا|على سبيل المثال|كمثال|for example|for instance|such as)\s+[^.!?؟\n]+/iu
+const namedTopicCue = /(?:رح نحكي عن|رح أحكي عن|الموضوع هو|وهو عن|وهي عن|عن موضوع[^.!?؟\n]{0,60}\s+وه[وي](?:\s+عن)?|(?:the topic is|it['’]s about|today (?:we|i).{0,24} about))\s+(?!موضوع(?:\s|$)|(?:a|an) (?:very )?(?:interesting|important|great) topic)[^.!?؟\n]+/iu
+
+function presentationSignals(transcript: string) {
+  const explicitTopic = rules.presentation[0].cue.test(transcript)
+  const vagueOpening = rules.presentation[1].cue.test(transcript)
+  return {
+    topic: explicitTopic || (!vagueOpening && namedTopicCue.test(transcript)),
+    example: exampleCue.test(transcript),
+  }
+}
+
+export function comparePresentations(first: string, revised: string, language: Language) {
+  const before = presentationSignals(first)
+  const now = presentationSignals(revised)
+  const ar = language === 'ar'
+  const improved = []
+  const remaining = []
+
+  if (now.topic && !before.topic) improved.push(ar ? 'سمّيتي موضوع العرض في المحاولة الجديدة.' : 'You named the topic in the new attempt.')
+  if (now.example && !before.example) improved.push(ar ? 'أضفتِ عبارة تقدّم مثالًا.' : 'You added a phrase introducing an example.')
+  if (!now.topic) remaining.push(ar ? 'سمّي الموضوع بوضوح في المقدمة.' : 'Name the topic clearly in the opening.')
+  if (!now.example) remaining.push(ar ? 'قدّمي مثالًا محددًا يدعم فكرتك.' : 'Introduce a specific example that supports your point.')
+
+  return { improved, remaining }
+}
+
+export function buildAudienceQuestion(transcript: string, language: Language) {
+  const { topic, example } = presentationSignals(transcript)
+  if (language === 'ar') {
+    if (!topic) return 'لو بدك تلخّصي موضوعك للجمهور بجملة واحدة، شو بتحكي؟'
+    return example ? 'كيف ممكن نطبّق الفكرة اللي شرحتيها بموقف مختلف؟' : 'كيف ممكن نطبّق الفكرة اللي حكيتي عنها بحياتنا اليومية؟'
+  }
+  if (!topic) return 'How would you sum up your topic for the audience in one sentence?'
+  return example ? 'How could we apply your idea in a different situation?' : 'How could we put your idea into practice in everyday life?'
+}
+
+export function audienceAnswerTip(answer: string, language: Language) {
+  const hasExample = exampleCue.test(answer)
+  if (language === 'ar') {
+    if (!answer.trim()) return 'انتهى الوقت بدون جواب مكتوب أو مفرّغ.'
+    return hasExample ? 'استخدمتِ عبارة تقدّم مثالًا. راجعي إذا المثال بجاوب السؤال مباشرة.' : 'جرّبي تدعمي جوابك بمثال محدد بعد الجملة الأولى.'
+  }
+  if (!answer.trim()) return 'Time ended without a typed or transcribed answer.'
+  return hasExample ? 'You introduced an example. Check that it answers the question directly.' : 'Try adding a concrete example after your opening sentence.'
+}
