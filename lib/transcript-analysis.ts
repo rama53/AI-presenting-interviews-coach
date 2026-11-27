@@ -122,7 +122,7 @@ const audiencePrompts = {
 }
 
 export function buildAudienceQuestion(transcript: string, language: Language, presentationTopic = '') {
-  const { topic, example } = presentationSignals(transcript)
+  const { topic, example } = presentationSignals(transcript, presentationTopic)
   return audiencePrompts[language][example ? 2 : topic || presentationTopic.trim() ? 1 : 0]
 }
 

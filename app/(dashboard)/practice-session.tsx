@@ -48,6 +48,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const roomSettings = useRef<{ attachment: File | null; roomOption: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const startedWithSeconds = useRef(0)
+  const [preparingQuestion, setPreparingQuestion] = useState(false)
   const [audienceQuestion, setAudienceQuestion] = useState<ReturnType<typeof buildAudienceQuestion> | null>(null)
   const [paused, setPaused] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -154,6 +155,12 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     finally { pending.current.delete(kind) }
   }
 
+  useEffect(() => {
+    if (!preparingQuestion || !paused || session.phase !== 'running' || speech.busy) return
+    setAudienceQuestion(buildAudienceQuestion(speech.transcript, language, presentationTopic))
+    setPreparingQuestion(false)
+  }, [preparingQuestion, paused, session.phase, speech.busy, speech.transcript, language, presentationTopic])
+
   function togglePause() {
     if (session.phase !== 'running') return
     if (paused) {
@@ -195,6 +202,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     const settings = roomSettings.current
     if (!settings || speech.busy) return
 
+    setPreparingQuestion(false)
     setPreviousAttempt(speech.transcript)
     speech.setTranscript('')
     completed.current = false
@@ -253,14 +261,16 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy) speech.startMicrophone() } },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               { label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) },
-              { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
+              { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: () => { setPreparingQuestion(false); togglePause() } },
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
             <button type="button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); else void roomRef.current?.requestFullscreen?.().catch(() => {}) }} className="rounded-2xl p-3 hover:bg-white/10" aria-label={ar ? 'ملء الشاشة' : 'Toggle fullscreen'} title={ar ? 'ملء الشاشة' : 'Toggle fullscreen'}>{fullscreen ? <Minimize size={20}/> : <Maximize size={20}/>}</button>
             <button type="button" disabled={paused} onClick={() => {
-              setAudienceQuestion(buildAudienceQuestion(speech.transcript, language, presentationTopic))
+              setPreparingQuestion(true)
               togglePause()
             }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
-              {ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions'}
+              {preparingQuestion
+                ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…')
+                : (ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions')}
             </button>
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
