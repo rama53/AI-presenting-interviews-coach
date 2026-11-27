@@ -15,7 +15,7 @@ export function DashboardSidebar({ text, children }: { text: DashboardCopy; chil
     <aside className="bg-sidebar px-4 py-4 sm:px-8 text-sidebar-foreground lg:w-60 lg:shrink-0 lg:px-5 lg:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 lg:sticky lg:top-8 lg:block">
         <a href="#dashboard" className="block w-fit" lang="ar">
-          <Image src={taleeqLogo} alt="طليق" className="h-auto w-24 lg:w-32" />
+          <Image src={taleeqLogo} alt="طليق" className="h-auto w-24 brightness-0 invert lg:w-32" />
         </a>
 
         <div className="lg:mt-6">{children}</div>
