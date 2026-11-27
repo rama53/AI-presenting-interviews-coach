@@ -369,7 +369,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           ) : (
             <p className="p-4 text-sm">
               {slideStatus === 'loading' ? (ar ? 'جاري قراءة الشرائح…' : 'Reading slides…') :
-                attachment ? (ar ? 'المعاينة الكاملة متاحة بصيغة PDF. جرّبي تصدّري الشرائح كـPDF.' : 'Export the slides as PDF for a full preview.') :
+                attachment ? (ar ? 'المعاينة الكاملة متاحة بصيغة PDF. يمكن تصدير الشرائح كـPDF.' : 'Export the slides as PDF for a full preview.') :
                 (ar ? 'لم يتم إرفاق شرائح' : 'No slides attached')}
             </p>
           )}
@@ -378,17 +378,17 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
         <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
           {speech.status === 'unavailable' || speech.status === 'error'
-            ? (ar ? 'التفريغ الصوتي غير متاح. تحققي من المايك أو جرّبي Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.')
+            ? (ar ? 'التفريغ الصوتي غير متاح. تحقق من المايك أو استخدم Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.')
             : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
         {isInterview && (
           <section className="absolute inset-x-4 bottom-28 mx-auto max-w-3xl rounded-xl bg-black/65 px-3 py-2 text-center backdrop-blur-sm sm:bottom-28">
             {interviewComplete ? (
-              <p role="status" className="text-sm">{ar ? 'انتهت الأسئلة. أنهي التدريب لعرض التقرير.' : 'Questions complete. End the session to see your report.'}</p>
+              <p role="status" className="text-sm">{ar ? 'انتهت الأسئلة. يمكن إنهاء التدريب لعرض التقرير.' : 'Questions complete. End the session to see your report.'}</p>
             ) : (
               <>
                 <p aria-live="polite" className="mx-auto max-h-16 overflow-auto text-sm font-medium leading-relaxed text-white">{interviewQuestion}</p>
-                <p role="status" className="mt-1 text-xs text-white/70">{speakingInterviewer ? (ar ? 'المحاور يتحدث' : 'Interviewer speaking') : speech.busy ? (ar ? 'جاري الاستماع…' : 'Listening…') : (ar ? 'اضغطي المايك للإجابة' : 'Tap the mic to answer')}</p>
+                <p role="status" className="mt-1 text-xs text-white/70">{speakingInterviewer ? (ar ? 'المحاور يتحدث' : 'Interviewer speaking') : speech.busy ? (ar ? 'جاري الاستماع…' : 'Listening…') : (ar ? 'اضغط على المايك للإجابة' : 'Tap the mic to answer')}</p>
               </>
             )}
           </section>
@@ -408,7 +408,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
               {preparingQuestion
                 ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…')
-                : (ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions')}
+                : (ar ? 'انتهيت من العرض — بدء الأسئلة' : 'I’m done and ready for questions')}
             </button>}
             {isInterview && !interviewComplete && <button type="button" disabled={paused || speakingInterviewer || submittingInterviewAnswer || (!speech.busy && !speech.transcript.trim())} onClick={() => { setSubmittingInterviewAnswer(true); stopMicrophone() }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">{submittingInterviewAnswer ? (ar ? 'جاري التحضير…' : 'Preparing…') : (ar ? 'السؤال التالي' : 'Next question')}</button>}
             <span className="h-8 w-px bg-white/20"/>
@@ -490,7 +490,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                   dir="auto"
                   rows={4}
                   maxLength={4000}
-                  placeholder={language === 'ar' ? 'الصقي متطلبات الإعلان هون عشان تتخصّص الأسئلة' : 'Paste the job requirements to tailor interview questions'}
+                  placeholder={language === 'ar' ? 'أضف متطلبات الإعلان لتخصيص الأسئلة' : 'Paste the job requirements to tailor interview questions'}
                   className={fieldClass}
                 />
               </div>
