@@ -4,6 +4,52 @@ const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 export const sessionApiEnabled = Boolean(apiUrl && supabaseUrl && publishableKey)
 
+export type SavedPracticeReport = { comments: string[]; recording: boolean }
+
+function recordingStorage(token: string, sessionId: string) {
+  if (!supabaseUrl || !publishableKey) throw new Error('configuration')
+  return {
+    url: `${supabaseUrl.replace(/\/$/, '')}/storage/v1`,
+    path: `practice-recordings/${encodeURIComponent(sessionId)}/recording`,
+    headers: { apikey: publishableKey, Authorization: `Bearer ${token}` },
+  }
+}
+
+export async function recordingUrl(token: string, sessionId: string) {
+  const storage = recordingStorage(token, sessionId)
+  const result = await fetch(`${storage.url}/object/sign/${storage.path}`, {
+    method: 'POST',
+    headers: { ...storage.headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: 900 }),
+    signal: AbortSignal.timeout(15000),
+  })
+  if (!result.ok) throw new Error('playback')
+  const { signedURL } = await result.json()
+  if (typeof signedURL !== 'string' || !signedURL.startsWith('/object/sign/')) throw new Error('playback')
+  return storage.url + signedURL
+}
+
+export async function saveSessionArtifacts(token: string, sessionId: string, comments: string[], recording?: Blob) {
+  if (!apiUrl) throw new Error('configuration')
+  if (recording) {
+    const storage = recordingStorage(token, sessionId)
+    const upload = await fetch(`${storage.url}/object/${storage.path}`, {
+      method: 'POST',
+      headers: { ...storage.headers, 'Content-Type': recording.type.split(';')[0] },
+      body: recording,
+      signal: AbortSignal.timeout(120000),
+    })
+    if (!upload.ok) await recordingUrl(token, sessionId)
+  }
+  const result = await fetch(`${apiUrl}/sessions/${encodeURIComponent(sessionId)}/report`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comments, recording: Boolean(recording) }),
+    signal: AbortSignal.timeout(25000),
+  })
+  if (!result.ok) throw new Error('report')
+}
+
 export async function loadRecentSessions(token: string, signal: AbortSignal) {
   if (!apiUrl) throw new Error('configuration')
   const result = await fetch(`${apiUrl}/sessions`, {
@@ -12,8 +58,8 @@ export async function loadRecentSessions(token: string, signal: AbortSignal) {
     signal,
   })
   if (!result.ok) throw new Error('history')
-  const rows: { id: string; practice_type: 'interview' | 'presentation'; ended_at: string }[] = await result.json()
-  return rows.map(row => ({ id: row.id, practice: row.practice_type, completedAt: row.ended_at }))
+  const rows: { id: string; practice_type: 'interview' | 'presentation'; ended_at: string; report?: SavedPracticeReport | null }[] = await result.json()
+  return rows.map(row => ({ id: row.id, practice: row.practice_type, completedAt: row.ended_at, report: row.report ?? undefined }))
 }
 
 export async function signIn(email: string, password: string): Promise<string> {
@@ -54,3 +100,4 @@ export async function savePracticeEnd(token: string, sessionId: string) {
   })
   if (!result.ok) throw new Error('finish')
 }
+

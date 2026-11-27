@@ -282,7 +282,7 @@ export function DashboardPage() {
           </button>
         </section>
 
-        <RecentSessions sessions={sessions} text={text} language={language}
+        <RecentSessions sessions={sessions} text={text} language={language} accessToken={account?.token}
           historyMessage={sessionApiEnabled
             ? !account ? (ar ? 'سجّلي الدخول لعرض جلساتك.' : 'Sign in to view your sessions.')
               : historyStatus === 'loading' ? (ar ? 'جارٍ تحميل الجلسات…' : 'Loading sessions…')
@@ -294,4 +294,5 @@ export function DashboardPage() {
     </div>
   )
 }
+
 

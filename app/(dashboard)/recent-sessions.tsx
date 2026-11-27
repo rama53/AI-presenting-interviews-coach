@@ -1,4 +1,6 @@
-import { AudioLines, ChevronDown, Clock3, MessageSquareText } from 'lucide-react'
+import { AudioLines, ChevronDown, MessageSquareText } from 'lucide-react'
+import type { SavedPracticeReport } from '@/lib/practice-session-api'
+import { SessionRecordingPlayer } from './session-recording'
 import type { DashboardCopy, Language } from './copy'
 import { AssessmentCriteria } from './assessment-criteria'
 
@@ -13,6 +15,7 @@ export type SessionRecord = {
   practice: PracticeId
   completedAt: string
   interviewType?: InterviewType
+  report?: SavedPracticeReport
 }
 
 function isSessionRecord(value: unknown): value is SessionRecord {
@@ -46,11 +49,12 @@ export function saveSession(practice: PracticeId, current: SessionRecord[], inte
   }
 }
 
-export function RecentSessions({ sessions, text, language, historyMessage }: {
+export function RecentSessions({ sessions, text, language, historyMessage, accessToken }: {
   sessions: SessionRecord[]
   text: DashboardCopy
   language: Language
   historyMessage?: string
+  accessToken?: string
 }) {
   return (
     <section id="recent-sessions" aria-labelledby="recent-sessions-title" className="mt-7 scroll-mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
@@ -59,10 +63,6 @@ export function RecentSessions({ sessions, text, language, historyMessage }: {
           <h2 id="recent-sessions-title" className="text-lg font-semibold">{text.recent}</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{text.recentDescription}</p>
         </div>
-        <span className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground sm:mt-0">
-          <Clock3 aria-hidden="true" className="size-3.5" />
-          {text.reportUnavailable}
-        </span>
       </div>
       {historyMessage || sessions.length === 0 ? (
         <p role="status" className="mt-5 rounded-xl border border-dashed border-border bg-background px-4 py-5 text-sm leading-relaxed text-muted-foreground">{historyMessage ?? text.emptyHistory}</p>
@@ -87,7 +87,10 @@ export function RecentSessions({ sessions, text, language, historyMessage }: {
                         {new Date(session.completedAt).toLocaleDateString(language, { dateStyle: 'medium' })}
                       </time>
                     </span>
-                    <span className="hidden rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground sm:inline-flex">{text.reportUnavailable}</span>
+                    <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
+                      {session.report?.recording ? (language === 'ar' ? 'تسجيل محفوظ' : 'Recording saved')
+                        : session.report?.comments?.length ? (language === 'ar' ? 'ملاحظات محفوظة' : 'Feedback saved') : text.reportUnavailable}
+                    </span>
                     <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                   </summary>
                   <div className="border-t border-border px-4 pb-4 pt-3 sm:px-5">
@@ -95,6 +98,13 @@ export function RecentSessions({ sessions, text, language, historyMessage }: {
                     <div className="flex flex-col gap-3 text-sm leading-relaxed text-muted-foreground">
                       <p>{isTechnical ? text.interviewSetup.technicalPrompt : option.prompt}</p>
                       <AssessmentCriteria title={text.assessment} criteria={isTechnical ? text.interviewSetup.technicalCriteria : option.criteria} />
+                      {accessToken && session.report?.recording && <SessionRecordingPlayer token={accessToken} sessionId={session.id} arabic={language === 'ar'} />}
+                      {Boolean(session.report?.comments?.length) && (
+                        <div>
+                          <h3 className="font-semibold">{language === 'ar' ? 'ملاحظات الأداء' : 'Performance feedback'}</h3>
+                          <ul className="mt-2 list-disc space-y-1 ps-5">{session.report?.comments.map((comment, index) => <li key={index}>{comment}</li>)}</ul>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </details>
@@ -106,4 +116,5 @@ export function RecentSessions({ sessions, text, language, historyMessage }: {
     </section>
   )
 }
+
 
