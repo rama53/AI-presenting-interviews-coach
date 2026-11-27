@@ -46,10 +46,11 @@ export function saveSession(practice: PracticeId, current: SessionRecord[], inte
   }
 }
 
-export function RecentSessions({ sessions, text, language }: {
+export function RecentSessions({ sessions, text, language, historyMessage }: {
   sessions: SessionRecord[]
   text: DashboardCopy
   language: Language
+  historyMessage?: string
 }) {
   return (
     <section id="recent-sessions" aria-labelledby="recent-sessions-title" className="mt-7 scroll-mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
@@ -63,8 +64,8 @@ export function RecentSessions({ sessions, text, language }: {
           {text.reportUnavailable}
         </span>
       </div>
-      {sessions.length === 0 ? (
-        <p className="mt-5 rounded-xl border border-dashed border-border bg-background px-4 py-5 text-sm leading-relaxed text-muted-foreground">{text.emptyHistory}</p>
+      {historyMessage || sessions.length === 0 ? (
+        <p role="status" className="mt-5 rounded-xl border border-dashed border-border bg-background px-4 py-5 text-sm leading-relaxed text-muted-foreground">{historyMessage ?? text.emptyHistory}</p>
       ) : (
         <ul className="mt-4 flex flex-col gap-2.5">
           {sessions.map((session) => {
@@ -105,3 +106,4 @@ export function RecentSessions({ sessions, text, language }: {
     </section>
   )
 }
+
