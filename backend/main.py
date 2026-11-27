@@ -394,7 +394,15 @@ def analyze_presentation(
             return {"question": question}
         return PresentationReview.model_validate(answer)
     except HTTPError as error:
-        print(f"Groq presentation request rejected: HTTP {error.code}", flush=True)
+        diagnostic = "no structured error"
+        try:
+            details = json.loads(error.read(8192)).get("error", {})
+            code = details.get("code") or details.get("type")
+            if isinstance(code, str) and len(code) <= 80 and code.replace("_", "").replace("-", "").isascii() and code.replace("_", "").replace("-", "").isalnum():
+                diagnostic = code
+        except (ValueError, AttributeError, OSError):
+            pass
+        print(f"Groq presentation request rejected: HTTP {error.code} ({diagnostic})", flush=True)
         if error.code == 429:
             raise HTTPException(429, "Groq rate limit reached") from error
         raise HTTPException(502, f"Groq rejected the request (HTTP {error.code})") from error
