@@ -69,7 +69,7 @@ export function CameraFeedback({ preview, samples, language, paused }: {
     <p role="status" className="absolute end-4 bottom-28 rounded-lg bg-black/85 px-3 py-2 text-sm">
       {status === 'loading'
         ? (ar ? 'جاري تجهيز تحليل الكاميرا…' : 'Loading camera feedback…')
-        : (ar ? 'تعذّر تشغيل تحليل الكاميرا. تقدري تكمّلي العرض.' : 'Camera feedback is unavailable. You can keep presenting.')}
+        : (ar ? 'تعذّر تشغيل تحليل الكاميرا. يمكنك متابعة العرض.' : 'Camera feedback is unavailable. You can keep presenting.')}
     </p>
   )
 }
