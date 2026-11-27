@@ -57,6 +57,7 @@ export function PresentationFeedback({ transcript, slides, voice, language }: {
   const words = transcript.match(/[\p{L}\p{N}]+/gu)?.length ?? 0
   const coverage = presentationCoverage(transcript, slides)
   const covered = coverage.filter((slide) => slide.covered)
+  const coverageUnclear = coverage.length > 0 && covered.length === 0
   const firstGap = coverage.find((slide) => !slide.covered)
   const example = /على سبيل المثال|مثلا|مثلًا|for example|for instance/iu.test(transcript)
   const pitch = summarizePitch(voice)
@@ -66,17 +67,20 @@ export function PresentationFeedback({ transcript, slides, voice, language }: {
       <h3 className="text-base font-semibold">{ar ? 'تقييم شرح العرض' : 'Presentation explanation review'}</h3>
       {words < 15 ? (
         <p>{ar ? 'النص قصير للحكم على الشرح. اشرح الفكرة وادعمها بمثال.' : 'The transcript is too short to assess the explanation. Explain the idea and support it with an example.'}</p>
+      ) : coverageUnclear ? (
+        <p>{ar ? 'ما قدرنا نقيّم ارتباط الشرح بالشرائح من النص المتاح. جرّب تذكر المصطلح الرئيسي وتشرحه بكلماتك.' : 'The available transcript is insufficient to assess slide coverage. Try naming the main term and explaining it in your own words.'}</p>
       ) : (
         <p>{strong
           ? (ar ? 'الشرح جيد وفق المؤشرات المتاحة: قدّمت مثالًا وغطّيت جزءًا من النقاط القابلة للتحليل.' : 'The explanation looks strong on the available indicators: you introduced an example and addressed the detected content.')
           : (ar ? 'الشرح بحاجة إلى دعم أوضح. اربط الفكرة بمثال محدد واشرح كيف يدعمها.' : 'The explanation needs clearer support. Give a concrete example and explain how it supports the point.')}</p>
       )}
-      {coverage.length > 0 && words > 0 && (
+      {covered.length > 0 && words > 0 && (
         <p>{ar ? 'شرائح ظهرت مصطلحاتها في كلامك:' : 'Slides with terms detected in your speech:'} {covered.length}/{coverage.length}.
           {firstGap && <> {ar ? 'راجع تغطية الشريحة' : 'Review slide'} {firstGap.index} · <bdi>{firstGap.phrase}</bdi></>}
         </p>
       )}
-      <p className="text-slate-500">{ar ? 'المؤشرات تقديرية وتعتمد على النص المتاح وتطابق المصطلحات.' : 'Estimates use the available transcript and keyword overlap.'}</p>
+      {coverageUnclear && words > 0 && <p className="text-slate-500">{ar ? 'اختلاف لغة الشرائح عن التفريغ أو كتابة المصطلحات بتهجئة مختلفة ممكن يمنع المطابقة.' : 'Different languages or spellings in slides and speech can prevent keyword matching.'}</p>}
+      {!coverageUnclear && <p className="text-slate-500">{ar ? 'المؤشرات تقديرية وتعتمد على النص المتاح وتطابق المصطلحات.' : 'Estimates use the available transcript and keyword overlap.'}</p>}
       <h3 className="text-base font-semibold">{ar ? 'تنويع نبرة الصوت' : 'Vocal pitch variation'}</h3>
       <p>{pitch === null
         ? (ar ? 'لا توجد عينات صوت واضحة كفاية لقياس تنويع النبرة.' : 'There are too few clear audio samples to estimate pitch variation.')
