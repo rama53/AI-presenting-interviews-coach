@@ -7,6 +7,11 @@ type Rule = { cue: RegExp; ar: Feedback; en: Feedback }
 const rules = {
   presentation: [
     {
+      cue: /(?:وهو عن|وهي عن|والموضوع هو|(?:the topic is|it['’]s about))\s+[^.!?؟\n]+/iu,
+      ar: ['شو النقطة المحددة اللي بدك الجمهور يتذكّرها عن هالموضوع؟', 'ذكرتِ الموضوع. حدّدي أي جانب رح تركّزي عليه، وأعطي مثال يوضّحه.', 'اليوم رح أحكي عن [جانب محدد من الموضوع]، وبوضّحه بمثال عن [المثال].'],
+      en: ['What specific point about this topic should your audience remember?', 'You named the topic. Narrow it to one point and illustrate it with an example.', 'Today I’ll focus on [specific point] and illustrate it with [example].'],
+    },
+    {
       cue: /عن موضوع (?:كتير |كثير |جدا )?(?:حلو|مهم|ممتع|شيق)|about (?:a|an) (?:very )?(?:interesting|important|great) topic/iu,
       ar: ['شو الفكرة اللي بدك الجمهور يتذكّرها؟', 'سمّي موضوع العرض ووضّحي شو رح يستفيد الجمهور.', 'اليوم رح أحكي عن [الموضوع]، وبنهاية العرض رح تعرفوا [الفائدة].'],
       en: ['What idea should the audience remember?', 'Name your topic and explain what the audience will gain.', 'Today I’ll talk about [topic]. By the end, you’ll know [takeaway].'],
