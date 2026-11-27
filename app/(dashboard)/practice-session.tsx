@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { DashboardCopy } from './copy'
+import { usePracticeTranscript } from './use-practice-transcript'
+import { PracticeAnalysis } from './practice-analysis'
+import type { DashboardCopy, Language } from './copy'
 import type { InterviewType } from './recent-sessions'
 import { AssessmentCriteria } from './assessment-criteria'
 
@@ -30,9 +32,10 @@ type Session =
   | { phase: 'running'; deadline: number; attachment: File | null; roomOption: number }
   | { phase: 'finished' }
 
-export function PracticeSession({ practice, text, isInterview, onClose, onComplete }: {
+export function PracticeSession({ practice, text, language, isInterview, onClose, onComplete }: {
   practice: Practice
   text: DashboardCopy
+  language: Language
   isInterview: boolean
   onClose: () => void
   onComplete: (interviewType?: InterviewType) => void
@@ -47,12 +50,12 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
   const roomRef = useRef<HTMLElement>(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [camera, setCamera] = useState(false)
-  const [mic, setMic] = useState(false)
+  const speech = usePracticeTranscript(language)
   const [slides, setSlides] = useState(false)
   const [slideUrl, setSlideUrl] = useState('')
   const [mediaError, setMediaError] = useState(false)
   const preview = useRef<HTMLVideoElement>(null)
-  const streams = useRef<Partial<Record<'camera' | 'mic', MediaStream>>>({})
+  const streams = useRef<Partial<Record<'camera', MediaStream>>>({})
   const pending = useRef(new Set<string>())
   const generation = useRef(0)
   const [interview, setInterview] = useState<InterviewDetails | null>(null)
@@ -63,12 +66,14 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
 
+  const { stopMicrophone } = speech
   const finish = useCallback(() => {
     if (completed.current) return
+    stopMicrophone()
     completed.current = true
     setSession({ phase: 'finished' })
     onComplete(interview?.type)
-  }, [interview?.type, onComplete])
+  }, [interview?.type, onComplete, stopMicrophone])
 
   useEffect(() => {
     heading.current?.focus()
@@ -121,23 +126,23 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
     return () => URL.revokeObjectURL(url)
   }, [attachment])
 
-  async function toggleMedia(kind: 'camera' | 'mic') {
-    const set = kind === 'camera' ? setCamera : setMic
+  async function toggleCamera() {
+    const kind = 'camera'
     if (pending.current.has(kind)) return
     if (streams.current[kind]) {
       streams.current[kind]?.getTracks().forEach(track => track.stop())
       delete streams.current[kind]
-      set(false)
+      setCamera(false)
       return
     }
     pending.current.add(kind)
     const token = generation.current
     try {
       setMediaError(false)
-      const stream = await navigator.mediaDevices.getUserMedia(kind === 'camera' ? { video: true } : { audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       if (token !== generation.current) { stream.getTracks().forEach(track => track.stop()); return }
       streams.current[kind] = stream
-      set(true)
+      setCamera(true)
     } catch { if (token === generation.current) setMediaError(true) }
     finally { pending.current.delete(kind) }
   }
@@ -151,6 +156,7 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
     } else {
       pausedAt.current = Date.now()
       setPaused(true)
+      stopMicrophone()
       videoRef.current?.pause()
     }
   }
@@ -209,11 +215,16 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
           {slideUrl ? <iframe title={ar ? 'الشرائح' : 'Slides'} src={slideUrl} className="min-h-0 flex-1 bg-white"/> : <p className="p-4 text-sm">{attachment ? (ar ? 'حوّل الشرائح إلى PDF للمعاينة' : 'Convert slides to PDF for preview') : (ar ? 'لم يتم إرفاق شرائح' : 'No slides attached')}</p>}
         </aside>}
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
+        <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
+          {speech.status === 'unavailable' || speech.status === 'error'
+            ? (ar ? 'التفريغ غير متاح. اكتبي النص بعد إنهاء التدريب.' : 'Transcription unavailable. Type your transcript after ending practice.')
+            : (ar ? 'قد يرسل المتصفح الصوت لخدمة التفريغ عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
+        </p>
         <footer className="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-7">
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
-              { label: ar ? 'المايك' : 'Mic', active: mic, Icon: mic ? Mic : MicOff, action: () => void toggleMedia('mic') },
-              { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleMedia('camera') },
+              { label: ar ? 'المايك للتفريغ' : 'Transcription mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy) speech.startMicrophone() } },
+              { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               { label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) },
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: togglePause },
             ].map(({ label, active, Icon, action }) => <button key={label} type="button" onClick={action} aria-pressed={active} title={label} className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs ${active ? 'bg-white/20' : 'hover:bg-white/10'}`}><Icon size={21}/><span>{label}</span></button>)}
@@ -263,6 +274,9 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
             </p>
           )}
         </>
+      )}
+      {session.phase !== 'ready' && (
+        <PracticeAnalysis speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>

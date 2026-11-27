@@ -11,7 +11,7 @@ Taleeq is a bilingual web app for rehearsing job interviews and presentations. T
 | Job interview | Choose a personal or technical interview, enter a job title and optional job description, attach an optional CV, select one to three interviewers, and set a duration of up to 20 minutes. |
 | Presentation | Choose a small or large audience, set the duration, and optionally attach your presentation material. |
 
-The current frontend provides a practice prompt, a countdown, and assessment criteria. Recent Sessions shows the last five completed practices in the current browser. Attachments stay in the browser for the active session. Camera access, microphone access, AI conversations, and automated feedback are planned.
+The current frontend provides a practice prompt, a countdown, and assessment criteria. Recent Sessions shows the last five completed practices in the current browser. Attachments stay in the browser for the active session. The practice analysis panel accepts typed text or a transcript from the browser’s speech recognition service. The browser may send audio to that service. The panel generates rule-based feedback and a follow-up from the transcript. Camera access, model-generated conversations, and delivery analysis are planned.
 
 ## Next milestone — interactive simulation room
 
@@ -42,3 +42,4 @@ The workflow reads the Pages base path from GitHub, builds the static export, an
 ```sh
 NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH=/TALEEK corepack pnpm build
 ```
+
