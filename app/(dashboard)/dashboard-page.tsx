@@ -7,6 +7,7 @@ import { LanguageSelect } from './language-select'
 import { DashboardSidebar } from './dashboard-sidebar'
 import { RecentSessions, readSessions, saveSession, type PracticeId, type SessionRecord } from './recent-sessions'
 import { PracticeSession } from './practice-session'
+import { PresentationRoom } from './presentation-room'
 import taleeqVerses from './taleeq-verses.png'
 
 const practiceOptions = [
@@ -55,6 +56,19 @@ export function DashboardPage() {
       practiceTrigger.current = null
     }
   }, [selectedPractice])
+
+  if (selectedPractice?.id === 'presentation') {
+    return (
+      <PresentationRoom
+        language={language}
+        languageControl={languageSelect}
+        text={text}
+        defaultMinutes={selectedPractice.defaultMinutes}
+        onClose={() => setSelectedPractice(null)}
+        onComplete={() => setSessions(saveSession('presentation', sessions))}
+      />
+    )
+  }
 
   if (selectedPractice) {
     return (

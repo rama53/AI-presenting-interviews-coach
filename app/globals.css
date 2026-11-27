@@ -141,4 +141,37 @@
   .dashboard-verse + .dashboard-verse {
     mask-position: center 89.6%;
   }
+
+  .room-photo-motion {
+    animation: room-breath 36s ease-in-out infinite alternate;
+    background-position: 42% center;
+    transform-origin: center 55%;
+  }
+
+  .audience-moment {
+    animation: audience-moment-in 420ms ease-out both;
+  }
+}
+
+@media (min-width: 640px) {
+  .room-photo-motion {
+    background-position: center;
+  }
+}
+
+@keyframes room-breath {
+  from { transform: scale(1); }
+  to { transform: scale(1.035); }
+}
+
+@keyframes audience-moment-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-photo-motion,
+  .audience-moment {
+    animation: none;
+  }
 }
