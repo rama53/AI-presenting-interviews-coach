@@ -137,7 +137,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   useEffect(() => {
     const audio = ambienceRef.current
     if (!audio) return
-    const level = ambienceMuted || paused || speakingInterviewer || audienceQuestion ? 0 : (ambienceRoom === 'hall' ? 0.038 : 0.024) * (speech.busy ? 0.65 : 1)
+    const level = ambienceMuted || paused || speakingInterviewer || audienceQuestion ? 0 : (ambienceRoom === 'hall' ? 0.022 : 0.014) * (speech.busy ? 0.65 : 1)
     audio.gain.gain.setTargetAtTime(level, audio.context.currentTime, 0.15)
   }, [session.phase, ambienceRoom, ambienceMuted, paused, speech.busy, speakingInterviewer, audienceQuestion])
 
