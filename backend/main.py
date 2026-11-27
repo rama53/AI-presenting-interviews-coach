@@ -332,8 +332,8 @@ def analyze_presentation(
     ) or any(len(slide) > 1500 for slide in data.slides):
         raise HTTPException(422, "A usable presentation transcript or slide text is required")
 
-    key = os.getenv("GEMINI_API_KEY")
-    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+    key = os.getenv("GROQ_API_KEY")
+    model = os.getenv("TALEEK_PRESENTATION_GROQ_MODEL", "openai/gpt-oss-20b")
     if not key:
         raise HTTPException(503, "AI service is not configured")
 
@@ -355,21 +355,27 @@ def analyze_presentation(
             "Return only a JSON object with string keys strength, gap, next_step, without markdown."
         )
     payload = {
-        "systemInstruction": {"parts": [{"text": instructions}]},
-        "contents": [{"role": "user", "parts": [{"text": data.model_dump_json()}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 2048},
+        "model": model,
+        "messages": [
+            {"role": "system", "content": instructions},
+            {"role": "user", "content": data.model_dump_json()},
+        ],
+        "temperature": 0.4,
+        "max_completion_tokens": 2048,
     }
     request = Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        "https://api.groq.com/openai/v1/chat/completions",
         data=json.dumps(payload).encode(),
-        headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         method="POST",
     )
     try:
         with urlopen(request, timeout=25) as response:
             result = json.load(response)
-        parts = result["candidates"][0]["content"]["parts"]
-        answer = "".join(p["text"] for p in parts if "text" in p and not p.get("thought")).strip()
+        answer = result["choices"][0]["message"]["content"]
+        if not isinstance(answer, str):
+            raise ValueError("Missing completion text")
+        answer = answer.strip()
         if data.task == "question":
             if not answer or len(answer) > 500:
                 raise ValueError("Invalid question")
