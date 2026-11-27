@@ -100,15 +100,16 @@ export function DashboardPage() {
           {practiceOptions.map((option) => {
             const Icon = option.icon
             const mode = text.modes[option.id]
-            const isPresentation = option.id === 'presentation'
             return (
-              <Card key={option.id} className={`rounded-[20px] border p-0 shadow-none ring-0 ${isPresentation ? 'border-primary-border bg-primary-soft' : 'border-info-border bg-info-soft'}`}>
-                <CardContent className="flex h-full flex-col items-start p-5 sm:p-7">
-                  <div className={`grid size-10 place-items-center rounded-xl bg-white/80 ${isPresentation ? 'text-primary' : 'text-info'}`}>
-                    <Icon aria-hidden="true" className="size-5" />
+              <Card key={option.id} className="rounded-3xl border border-border bg-card p-0 shadow-sm ring-0">
+                <CardContent className="flex h-full flex-col p-5 sm:p-7">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sidebar-highlight text-sidebar">
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
+                    <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{mode.title}</h2>
                   </div>
-                  <h2 className="mt-4 text-xl font-semibold tracking-tight">{mode.title}</h2>
-                  <p className="mt-2 flex-1 text-sm leading-loose text-muted-foreground">{mode.description}</p>
+                  <p className="mt-4 flex-1 text-sm leading-loose text-muted-foreground">{mode.description}</p>
                   <Button
                     size="lg"
                     type="button"
@@ -117,7 +118,7 @@ export function DashboardPage() {
                       practiceTrigger.current = option.id
                       setSelectedPractice(option)
                     }}
-                    className={`mt-5 min-h-11 justify-between gap-3 self-stretch rounded-xl sm:self-start ${isPresentation ? 'bg-primary hover:bg-primary-hover' : 'bg-info hover:bg-info-strong'}`}
+                    className="mt-5 min-h-11 w-full justify-between gap-3 rounded-xl px-4 hover:bg-primary-hover"
                   >
                     {mode.action}<ArrowRight aria-hidden="true" data-icon="inline-end" className="rtl:rotate-180" />
                   </Button>

@@ -56,25 +56,25 @@
 
 :root {
   color-scheme: light;
-  --background: #f3f6fb;
-  --foreground: #132440;
-  --card: #ffffff;
+  --background: #f8f5ef;
+  --foreground: #17283f;
+  --card: #fffdfa;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: #bd3d0c;
+  --primary: #a63d1e;
   --primary-foreground: #ffffff;
-  --primary-hover: #9b2e08;
-  --primary-soft: #fff0e5;
+  --primary-hover: #873119;
+  --primary-soft: #fce8db;
   --primary-border: #f5c6a9;
   --secondary: #edf3fa;
   --secondary-foreground: #25466d;
-  --muted: #edf2f8;
-  --muted-foreground: #4f6179;
+  --muted: #f1ebe3;
+  --muted-foreground: #526071;
   --accent: var(--primary-soft);
   --accent-foreground: var(--primary-hover);
   --destructive: #b42334;
-  --border: #d9e2ef;
+  --border: #e6ddd0;
   --input: var(--border);
   --ring: var(--primary);
   --info: #23558d;
@@ -88,14 +88,14 @@
   --chart-4: var(--success);
   --chart-5: #6a7f9c;
   --radius: 0.75rem;
-  --sidebar: #10213c;
+  --sidebar: #17283f;
   --sidebar-foreground: #ffffff;
   --sidebar-muted: #bdcce0;
-  --sidebar-primary: #ff8a4c;
-  --sidebar-primary-foreground: #10213c;
-  --sidebar-accent: #233b60;
+  --sidebar-primary: #ffab7d;
+  --sidebar-primary-foreground: #17283f;
+  --sidebar-accent: #263a54;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-highlight: #ffad7e;
+  --sidebar-highlight: #ffab7d;
   --sidebar-border: #344a69;
   --sidebar-ring: var(--sidebar-primary);
 }
@@ -120,10 +120,9 @@
 @layer components {
   .dashboard-waves {
     background-image:
-      radial-gradient(ellipse 78% 64% at 12% 0%, var(--primary-soft) 12%, transparent 100%),
-      radial-gradient(ellipse 75% 54% at 92% 27%, var(--info-border), transparent 100%),
-      radial-gradient(ellipse 88% 44% at 25% 52%, var(--info-soft) 10%, transparent 100%),
-      radial-gradient(ellipse 82% 45% at 85% 58%, var(--card) 10%, transparent 100%);
+      radial-gradient(ellipse 70% 62% at 18% 8%, var(--primary-soft), transparent 95%),
+      radial-gradient(ellipse 80% 58% at 90% 24%, var(--card), transparent 100%),
+      radial-gradient(ellipse 75% 40% at 34% 56%, var(--muted), transparent 100%);
     background-size: 100% clamp(30rem, 60vw, 48rem);
     background-repeat: no-repeat;
   }
