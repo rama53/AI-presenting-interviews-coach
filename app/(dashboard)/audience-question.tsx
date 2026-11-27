@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { audienceAnswerTip } from '@/lib/transcript-analysis'
+import { audienceAnswerTip, type buildAudienceQuestion } from '@/lib/transcript-analysis'
 import { Button } from '@/components/ui/button'
 import type { Language } from './copy'
 import { usePracticeTranscript } from './use-practice-transcript'
@@ -9,7 +9,7 @@ import { usePracticeTranscript } from './use-practice-transcript'
 const answerSeconds = 30
 
 export function AudienceQuestion({ question, language, onClose }: {
-  question: string
+  question: ReturnType<typeof buildAudienceQuestion>
   language: Language
   onClose: () => void
 }) {
@@ -21,14 +21,13 @@ export function AudienceQuestion({ question, language, onClose }: {
   const [finished, setFinished] = useState(false)
   const [audioUnavailable, setAudioUnavailable] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
-  const speaking = 'speechSynthesis' in globalThis
+  const audio = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
     const room = dialog.current
     room?.showModal()
     return () => {
       room?.close()
-      globalThis.speechSynthesis?.cancel()
     }
   }, [])
 
@@ -45,19 +44,15 @@ export function AudienceQuestion({ question, language, onClose }: {
     return () => window.clearInterval(timer)
   }, [deadline, finished, stopMicrophone])
 
-  function readQuestion() {
+  async function readQuestion() {
+    if (!audio.current) return
     setAudioUnavailable(false)
-    if (!speaking) {
+    audio.current.currentTime = 0
+    try {
+      await audio.current.play()
+    } catch {
       setAudioUnavailable(true)
-      return
     }
-    const voice = new SpeechSynthesisUtterance(question)
-    voice.lang = ar ? 'ar' : 'en-US'
-    voice.onerror = (event) => {
-      if (event.error !== 'canceled' && event.error !== 'interrupted') setAudioUnavailable(true)
-    }
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(voice)
   }
 
   const active = deadline !== null && !finished
@@ -72,12 +67,13 @@ export function AudienceQuestion({ question, language, onClose }: {
       aria-label={ar ? 'تحدّي الجمهور' : 'Audience challenge'}
     >
       <h3 className="font-semibold">{ar ? 'سؤال من الجمهور' : 'Audience question'}</h3>
-      <p>{question}</p>
+      <p>{question.text}</p>
+      <audio ref={audio} preload="auto" src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-audio/${question.audio}`} />
       {deadline === null && (
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={readQuestion}>{ar ? 'اسمعي السؤال' : 'Listen to the question'}</Button>
           <Button type="button" onClick={() => {
-            window.speechSynthesis?.cancel()
+            audio.current?.pause()
             setDeadline(Date.now() + answerSeconds * 1000)
           }}>{ar ? 'ابدئي الإجابة · ٣٠ ثانية' : 'Start your answer · 30 seconds'}</Button>
         </div>

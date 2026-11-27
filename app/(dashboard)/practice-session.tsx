@@ -43,12 +43,14 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   onComplete: (interviewType?: InterviewType) => void
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
+  const [previousAttempt, setPreviousAttempt] = useState<string | null>(null)
+  const roomSettings = useRef<{ attachment: File | null; roomOption: number } | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [handRaised, setHandRaised] = useState(false)
   const startedWithSeconds = useRef(0)
   const timedHandShown = useRef(false)
   const invitedHandShown = useRef(false)
-  const [audienceQuestion, setAudienceQuestion] = useState<string | null>(null)
+  const [audienceQuestion, setAudienceQuestion] = useState<ReturnType<typeof buildAudienceQuestion> | null>(null)
   const [paused, setPaused] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoError, setVideoError] = useState('')
@@ -204,12 +206,33 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     startedWithSeconds.current = duration
     setSecondsLeft(duration)
     const file = fields.get('attachment')
-    setSession({
-      phase: 'running',
-      deadline: Date.now() + duration * 1000,
+    const settings = {
       attachment: file instanceof File && file.name ? file : null,
       roomOption: Number(fields.get('room-option')),
-    })
+    }
+    roomSettings.current = settings
+    setSession({ phase: 'running', deadline: Date.now() + duration * 1000, ...settings })
+  }
+
+  function retryPresentation() {
+    const settings = roomSettings.current
+    if (!settings || speech.busy) return
+
+    setPreviousAttempt(speech.transcript)
+    speech.setTranscript('')
+    completed.current = false
+    timedHandShown.current = false
+    invitedHandShown.current = false
+    setHandRaised(false)
+    setAudienceQuestion(null)
+    setPaused(false)
+    setSlides(false)
+    setCamera(false)
+    setMediaError(false)
+    setVideoError('')
+    setVideoBlocked(false)
+    setSecondsLeft(startedWithSeconds.current)
+    setSession({ phase: 'running', deadline: Date.now() + startedWithSeconds.current * 1000, ...settings })
   }
 
   const minutes = Math.floor(secondsLeft / 60)
@@ -332,7 +355,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         </>
       )}
       {session.phase !== 'ready' && (
-        <PracticeAnalysis speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
+        <PracticeAnalysis previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
@@ -422,7 +445,12 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               <Button type="button" onClick={finish}>{text.finish}</Button>
             </>
           )}
-          <Button type="button" variant={session.phase === 'finished' ? 'default' : 'outline'} onClick={onClose}>
+          {session.phase === 'finished' && !isInterview && (
+            <Button type="button" disabled={speech.busy} onClick={retryPresentation}>
+              {language === 'ar' ? 'محاولة مرة أخرى' : 'Try the presentation again'}
+            </Button>
+          )}
+          <Button type="button" variant={session.phase === 'finished' && isInterview ? 'default' : 'outline'} onClick={onClose}>
             {session.phase === 'finished' ? text.back : text.cancel}
           </Button>
         </div>

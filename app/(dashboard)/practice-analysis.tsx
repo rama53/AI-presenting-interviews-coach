@@ -22,7 +22,7 @@ const labels = {
     evidence: 'من كلامك',
     retry: 'جرّبيها مرة ثانية',
     before: 'ملاحظة على النسخة الأولى',
-    compare: 'محاولة مرة أخرى',
+    compare: 'تحسين النص',
     clear: 'إنهاء المقارنة',
     save: 'حفظ النص الجديد',
     saved: 'تم حفظ النص الجديد وتحديث التحليل.',
@@ -43,7 +43,7 @@ const labels = {
     evidence: 'From your transcript',
     retry: 'Try it again',
     before: 'Feedback on your first version',
-    compare: 'Try again',
+    compare: 'Revise the transcript',
     clear: 'End comparison',
     save: 'Save revised transcript',
     saved: 'Revised transcript saved and analysis updated.',
@@ -51,10 +51,11 @@ const labels = {
   },
 }
 
-export function PracticeAnalysis({ language, mode, running, speech }: {
+export function PracticeAnalysis({ language, mode, running, speech, previousAttempt }: {
   language: Language
   mode: AnalysisMode
   running: boolean
+  previousAttempt: string | null
   speech: ReturnType<typeof usePracticeTranscript>
 }) {
   const text = labels[language]
@@ -70,8 +71,9 @@ export function PracticeAnalysis({ language, mode, running, speech }: {
   const firstResult = firstVersion === null ? null : analyzeTranscript({ transcript: firstVersion, language, mode })
 
   const ar = language === 'ar'
-  const comparison = saved && firstVersion !== null && mode === 'presentation'
-    ? comparePresentations(firstVersion, transcript, language)
+  const baseline = saved && firstVersion !== null ? firstVersion : previousAttempt
+  const comparison = baseline !== null && baseline.trim() && mode === 'presentation'
+    ? comparePresentations(baseline, transcript, language)
     : null
 
   return (

@@ -97,14 +97,22 @@ export function comparePresentations(first: string, revised: string, language: L
   return { improved, remaining }
 }
 
+const audiencePrompts = {
+  ar: [
+    { text: 'لو بدك تلخّصي موضوعك للجمهور بجملة واحدة، شو بتحكي؟', audio: 'ar-0.mp3' },
+    { text: 'كيف ممكن نطبّق الفكرة اللي حكيتي عنها بحياتنا اليومية؟', audio: 'ar-1.mp3' },
+    { text: 'كيف ممكن نطبّق الفكرة اللي شرحتيها بموقف مختلف؟', audio: 'ar-2.mp3' },
+  ],
+  en: [
+    { text: 'How would you sum up your topic for the audience in one sentence?', audio: 'en-0.mp3' },
+    { text: 'How could we put your idea into practice in everyday life?', audio: 'en-1.mp3' },
+    { text: 'How could we apply your idea in a different situation?', audio: 'en-2.mp3' },
+  ],
+}
+
 export function buildAudienceQuestion(transcript: string, language: Language) {
   const { topic, example } = presentationSignals(transcript)
-  if (language === 'ar') {
-    if (!topic) return 'لو بدك تلخّصي موضوعك للجمهور بجملة واحدة، شو بتحكي؟'
-    return example ? 'كيف ممكن نطبّق الفكرة اللي شرحتيها بموقف مختلف؟' : 'كيف ممكن نطبّق الفكرة اللي حكيتي عنها بحياتنا اليومية؟'
-  }
-  if (!topic) return 'How would you sum up your topic for the audience in one sentence?'
-  return example ? 'How could we apply your idea in a different situation?' : 'How could we put your idea into practice in everyday life?'
+  return audiencePrompts[language][!topic ? 0 : example ? 2 : 1]
 }
 
 export function audienceAnswerTip(answer: string, language: Language) {
