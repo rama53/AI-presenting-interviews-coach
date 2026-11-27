@@ -419,11 +419,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         </aside>}
         {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} />}
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
-        <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
-          {speech.status === 'unavailable' || speech.status === 'error'
-            ? (ar ? 'التفريغ الصوتي غير متاح. تحقق من المايك أو استخدم Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.')
-            : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
-        </p>
+        {(speech.status === 'unavailable' || speech.status === 'error') && <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">{ar ? 'التفريغ الصوتي غير متاح. تحقق من المايك أو استخدم Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.'}</p>}
         {isInterview && (
           <section className="absolute inset-x-4 bottom-28 mx-auto max-w-3xl rounded-xl bg-black/65 px-3 py-2 text-center backdrop-blur-sm sm:bottom-28">
             {interviewComplete ? (
@@ -518,6 +514,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
       {session.phase === 'ready' && isInterview && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
+          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">{language === "ar" ? "قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك." : "Your browser may send audio to a transcription service when the mic is on."}</p>
           {!isInterview && (
             <label className="mb-4 block text-sm font-medium">
               {language === 'ar' ? 'موضوع العرض (اختياري)' : 'Presentation topic (optional)'}
