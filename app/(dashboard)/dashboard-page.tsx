@@ -78,7 +78,7 @@ export function DashboardPage() {
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
         <header className="px-1 pt-5 pb-3 text-center sm:px-8 sm:pt-7 sm:pb-5">
           {language === 'ar' ? (
-            <h1 className="mx-auto max-w-3xl" aria-label={text.title.map((line) => line.join(' ')).join('، ')}>
+            <h1 className="dashboard-calligraphy mx-auto max-w-3xl" aria-label={text.title.map((line) => line.join(' ')).join('، ')}>
               {text.title.map((line) => (
                 <span
                   key={line[0]}

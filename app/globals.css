@@ -129,6 +129,23 @@
 }
 
 @layer components {
+  .dashboard-calligraphy {
+    position: relative;
+  }
+
+  /* Add the second stroke of the kasr tanween in بصِدْقٍ. */
+  .dashboard-calligraphy::after {
+    content: "";
+    position: absolute;
+    left: 78%;
+    top: 37.8%;
+    width: 1.66%;
+    height: 4.06%;
+    background: var(--sidebar);
+    clip-path: polygon(100% 0, 84% 38%, 0 100%, 14% 61%);
+    pointer-events: none;
+  }
+
   /* Show one row of the transparent calligraphy per mask. */
   .dashboard-verse {
     display: block;
