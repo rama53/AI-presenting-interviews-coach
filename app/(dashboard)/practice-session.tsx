@@ -149,7 +149,14 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const activeInterviewer = interviewTurns.length % 3
   const interviewerRoles = language === 'ar' ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
   useEffect(() => {
-    if (!isInterview || session.phase !== 'running' || paused || interviewComplete || !('speechSynthesis' in window)) return
+    if (!isInterview || session.phase !== 'running' || paused || interviewComplete) return
+    let cancelled = false
+    let audio: HTMLAudioElement | undefined
+    let objectUrl: string | undefined
+    const controller = new AbortController()
+    const fallback = () => {
+      if (cancelled) return
+      if (!('speechSynthesis' in window)) { setSpeakingInterviewer(false); return }
     const synth = window.speechSynthesis
     const utterance = new SpeechSynthesisUtterance(interviewQuestion)
     utterance.lang = language === 'ar' ? 'ar' : 'en-US'
@@ -161,12 +168,46 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     if (voice) utterance.voice = voice
     utterance.pitch = 1
     utterance.rate = [0.98, 1, 0.96][activeInterviewer]
-    utterance.onstart = () => setSpeakingInterviewer(true)
-    utterance.onend = utterance.onerror = () => setSpeakingInterviewer(false)
+    utterance.onstart = () => { if (!cancelled) setSpeakingInterviewer(true) }
+    utterance.onend = utterance.onerror = () => { if (!cancelled) setSpeakingInterviewer(false) }
     synth.cancel()
     synth.speak(utterance)
-    return () => { utterance.onstart = utterance.onend = utterance.onerror = null; synth.cancel(); setSpeakingInterviewer(false) }
-  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer])
+
+    }
+    const api = process.env.NEXT_PUBLIC_TALEEQ_API_URL
+    if (!api) fallback()
+    else {
+      setSpeakingInterviewer(true)
+      void (async () => {
+        try {
+          const response = await fetch(api.replace(/\/$/, '') + '/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) },
+            body: JSON.stringify({ text: interviewQuestion, interviewer: activeInterviewer, language }),
+            signal: controller.signal,
+          })
+          if (!response.ok) throw new Error('tts')
+          const blob = await response.blob()
+          if (cancelled) return
+          objectUrl = URL.createObjectURL(blob)
+          audio = new Audio(objectUrl)
+          audio.onended = () => { if (!cancelled) setSpeakingInterviewer(false) }
+          audio.onerror = () => { if (!cancelled) { audio?.pause(); fallback() } }
+          await audio.play()
+        } catch {
+          if (!cancelled) fallback()
+        }
+      })()
+    }
+    return () => {
+      cancelled = true
+      controller.abort()
+      if (audio) { audio.onended = audio.onerror = null; audio.pause() }
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+      setSpeakingInterviewer(false)
+    }
+  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer, accessToken])
 
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
