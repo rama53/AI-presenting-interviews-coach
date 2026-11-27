@@ -75,14 +75,14 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
       <audio ref={audio} preload="auto" src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/audience-audio/${question.audio}`} />
       {deadline === null && (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={readQuestion}>{ar ? 'اسمعي السؤال' : 'Listen to the question'}</Button>
+          <Button type="button" variant="outline" onClick={readQuestion}>{ar ? 'استماع إلى السؤال' : 'Listen to the question'}</Button>
           <Button type="button" onClick={() => {
             audio.current?.pause()
             setDeadline(Date.now() + answerSeconds * 1000)
-          }}>{ar ? 'ابدئي الإجابة · ٣٠ ثانية' : 'Start your answer · 30 seconds'}</Button>
+          }}>{ar ? 'بدء الإجابة · ٣٠ ثانية' : 'Start your answer · 30 seconds'}</Button>
         </div>
       )}
-      {audioUnavailable && <p role="status">{ar ? 'الصوت غير متاح على هالجهاز. اقرئي السؤال المكتوب.' : 'Audio is unavailable on this device. Read the question above.'}</p>}
+      {audioUnavailable && <p role="status">{ar ? 'الصوت غير متاح على هالجهاز. يمكن قراءة السؤال المكتوب.' : 'Audio is unavailable on this device. Read the question above.'}</p>}
       {deadline !== null && (
         <>
           {active && <p role="timer">{ar ? 'الوقت المتبقي' : 'Time remaining'} · {seconds}</p>}
@@ -104,7 +104,7 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
               </div>
             </>
           )}
-          {(speech.status === 'unavailable' || speech.status === 'error') && <p role="status">{ar ? 'تعذّر تحويل الصوت إلى نص. تقدري تكتبي جوابك.' : 'Speech recognition failed. You can type your answer.'}</p>}
+          {(speech.status === 'unavailable' || speech.status === 'error') && <p role="status">{ar ? 'تعذّر تحويل الصوت إلى نص. يمكنك كتابة جوابك.' : 'Speech recognition failed. You can type your answer.'}</p>}
           {finished && <p role="status">{audienceAnswerTip(speech.transcript, language)}</p>}
         </>
       )}
