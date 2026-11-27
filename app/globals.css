@@ -56,25 +56,25 @@
 
 :root {
   color-scheme: light;
-  --background: #f8f5ef;
-  --foreground: #17283f;
-  --card: #fffdfa;
+  --background: #f4ece4;
+  --foreground: #352327;
+  --card: #fffaf6;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: #a63d1e;
+  --primary: #681e2a;
   --primary-foreground: #ffffff;
-  --primary-hover: #873119;
-  --primary-soft: #fce8db;
-  --primary-border: #f5c6a9;
-  --secondary: #edf3fa;
-  --secondary-foreground: #25466d;
-  --muted: #f1ebe3;
-  --muted-foreground: #526071;
+  --primary-hover: #4d0e19;
+  --primary-soft: #ebd3cf;
+  --primary-border: #d6b4ad;
+  --secondary: #eee4da;
+  --secondary-foreground: #4d0e19;
+  --muted: #eee4da;
+  --muted-foreground: #665254;
   --accent: var(--primary-soft);
   --accent-foreground: var(--primary-hover);
   --destructive: #b42334;
-  --border: #e6ddd0;
+  --border: #dfcfc2;
   --input: var(--border);
   --ring: var(--primary);
   --info: #23558d;
@@ -88,15 +88,15 @@
   --chart-4: var(--success);
   --chart-5: #6a7f9c;
   --radius: 0.75rem;
-  --sidebar: #17283f;
+  --sidebar: #4d0e19;
   --sidebar-foreground: #ffffff;
-  --sidebar-muted: #bdcce0;
-  --sidebar-primary: #ffab7d;
-  --sidebar-primary-foreground: #17283f;
-  --sidebar-accent: #263a54;
+  --sidebar-muted: #eee4da;
+  --sidebar-primary: #cba49f;
+  --sidebar-primary-foreground: #4d0e19;
+  --sidebar-accent: #68222d;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-highlight: #ffab7d;
-  --sidebar-border: #344a69;
+  --sidebar-highlight: #e6c1bc;
+  --sidebar-border: #793744;
   --sidebar-ring: var(--sidebar-primary);
 }
 
@@ -120,10 +120,25 @@
 @layer components {
   .dashboard-waves {
     background-image:
-      radial-gradient(ellipse 70% 62% at 18% 8%, var(--primary-soft), transparent 95%),
-      radial-gradient(ellipse 80% 58% at 90% 24%, var(--card), transparent 100%),
-      radial-gradient(ellipse 75% 40% at 34% 56%, var(--muted), transparent 100%);
+      radial-gradient(ellipse 74% 57% at 12% 8%, var(--primary-soft), transparent 100%),
+      radial-gradient(ellipse 82% 52% at 85% 30%, #e4d2bf, transparent 100%),
+      radial-gradient(ellipse 76% 46% at 32% 57%, var(--card), transparent 100%);
     background-size: 100% clamp(30rem, 60vw, 48rem);
     background-repeat: no-repeat;
+  }
+}
+
+@layer components {
+  /* Show one row of the transparent calligraphy per mask. */
+  .dashboard-verse {
+    display: block;
+    aspect-ratio: 2172 / 234;
+    mask-size: 100% auto;
+    mask-repeat: no-repeat;
+    mask-position: center 17.35%;
+  }
+
+  .dashboard-verse + .dashboard-verse {
+    mask-position: center 89.6%;
   }
 }

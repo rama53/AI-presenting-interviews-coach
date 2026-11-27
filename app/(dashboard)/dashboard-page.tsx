@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, AudioLines, MessageSquareText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -78,14 +77,17 @@ export function DashboardPage() {
       <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="px-1 pt-9 pb-4 text-center sm:px-8 sm:pt-14 sm:pb-7">
+        <header className="px-1 pt-6 pb-4 text-center sm:px-8 sm:pt-9 sm:pb-5">
           {language === 'ar' ? (
-            <h1>
-              <Image
-                src={taleeqVerses}
-                alt={text.title.map((line) => line.join(' ')).join('، ')}
-                className="mx-auto aspect-[3.85/1] w-full max-w-4xl object-cover"
-              />
+            <h1 className="mx-auto max-w-3xl" aria-label={text.title.map((line) => line.join(' ')).join('، ')}>
+              {text.title.map((line) => (
+                <span
+                  key={line[0]}
+                  aria-hidden="true"
+                  className="dashboard-verse bg-sidebar"
+                  style={{ maskImage: `url("${taleeqVerses.src}")` }}
+                />
+              ))}
             </h1>
           ) : (
             <h1 className="text-3xl font-semibold leading-tight text-sidebar sm:text-5xl">
