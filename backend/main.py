@@ -379,6 +379,8 @@ def analyze_presentation(
         return PresentationReview.model_validate_json(answer)
     except HTTPError as error:
         print(f"Gemini presentation request rejected: HTTP {error.code}", flush=True)
+        if error.code in (400, 401, 403, 404):
+            raise HTTPException(502, f"Gemini rejected the request (HTTP {error.code})") from error
         if error.code == 429:
             raise HTTPException(429, "Gemini rate limit reached") from error
         raise HTTPException(502, "Presentation AI service unavailable") from error
