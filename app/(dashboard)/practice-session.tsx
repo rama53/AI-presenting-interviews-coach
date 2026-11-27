@@ -89,17 +89,16 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const interviewText = text.interviewSetup
   const roomLabel = isInterview ? text.interviewPanel : text.audienceSize
   const roomOptions = isInterview ? text.interviewPanelOptions : text.audienceOptions
-  const isTechnical = interview?.type === 'technical'
   const jobQuestions = useMemo(
     () => Array.from(new Set([
-      ...questionsFromJobDescription(interview?.jobDescription ?? '', language, interview?.type ?? 'personal'),
-      ...questionsFromJobDescription(cvText, language, interview?.type ?? 'personal'),
+      ...questionsFromJobDescription(interview?.jobDescription ?? '', language, 'technical'),
+      ...questionsFromJobDescription(cvText, language, 'technical'),
     ])),
     [cvText, interview, language],
   )
-  const interviewQuestion = interviewFollowUp ?? jobQuestions[0] ?? (isTechnical ? interviewText.technicalPrompt : practice.prompt)
+  const interviewQuestion = interviewFollowUp ?? (language === 'ar' ? 'عرّفنا بنفسك واحكي عن خبراتك وسبب اهتمامك بالوظيفة.' : 'Tell us about yourself, your experience, and why you are interested in this role.')
   const [speakingInterviewer, setSpeakingInterviewer] = useState(false)
-  const activeInterviewer = (interviewTurns.length + (isTechnical ? 1 : 0)) % 3
+  const activeInterviewer = interviewTurns.length % 3
   const interviewerRoles = language === 'ar' ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
   useEffect(() => {
     if (!isInterview || session.phase !== 'running' || paused || interviewComplete || !('speechSynthesis' in window)) return
@@ -131,8 +130,8 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     stopMicrophone()
     completed.current = true
     setSession({ phase: 'finished' })
-    onComplete(interview?.type)
-  }, [interview?.type, onComplete, stopMicrophone])
+    onComplete()
+  }, [onComplete, stopMicrophone])
 
   useEffect(() => {
     heading.current?.focus()
@@ -237,7 +236,15 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     if (!answer) return
 
     const turns = [...interviewTurns, { question: interviewQuestion, answer }]
-    const next = nextInterviewQuestion(answer, language, interview?.type ?? 'personal', turns.map(({ question }) => question), jobQuestions)
+    const asked = turns.map(({ question }) => question)
+    const nextRole = turns.length % 3
+    const managerQuestions = language === 'ar' ? ['احكي عن موقف واجهت فيه ضغطًا أو خلافًا ضمن فريق، وكيف تعاملت معه؟', 'كيف ترتب أولوياتك عندما تتعارض المواعيد والمسؤوليات؟'] : ['Tell us about a time you faced pressure or conflict within a team. How did you handle it?', 'How do you prioritize when deadlines and responsibilities conflict?']
+    const next = turns.length >= 9 ? null : nextRole === 1
+      ? nextInterviewQuestion(answer, language, 'technical', asked, jobQuestions)
+      : nextRole === 2
+        ? managerQuestions.find(q => !asked.includes(q)) ?? nextInterviewQuestion(answer, language, 'personal', asked)
+        : nextInterviewQuestion(answer, language, 'personal', asked)
+
     setInterviewTurns(turns)
     setInterviewFollowUp(next)
     setInterviewComplete(next === null)
@@ -265,7 +272,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     const duration = Number(fields.get('minutes')) * 60
     if (isInterview) {
       setInterview({
-        type: fields.get('interview-type') === 'technical' ? 'technical' : 'personal',
+        type: 'personal',
         jobTitle: String(fields.get('job-title') ?? '').trim(),
         jobDescription: String(fields.get('job-description') ?? '').trim(),
       })
@@ -427,7 +434,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         {session.phase === 'finished' ? text.complete : session.phase === 'ready' ? practice.setup : practice.running}
       </h1>
       {session.phase === 'finished' ? (
-        <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={isTechnical ? interviewText.technicalCriteria : practice.criteria} /></div>
+        <div className="mt-2"><AssessmentCriteria title={text.assessment} criteria={isInterview ? [...new Set([...practice.criteria, ...interviewText.technicalCriteria])] : practice.criteria} /></div>
       ) : isInterview ? (
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{interviewText.intro}</p>
       ) : null}
@@ -447,7 +454,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           ...speech,
           transcript: interviewReportTranscript,
           setTranscript: (value) => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value),
-        } : speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={false} />
+        } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>
@@ -459,17 +466,6 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           )}
           {isInterview && (
             <div className="mb-5 grid gap-5">
-              <fieldset>
-                <legend className="text-sm font-medium">{interviewText.type}</legend>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(['personal', 'technical'] as const).map((type) => (
-                    <label key={type} className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-3 text-sm has-checked:border-primary has-checked:bg-primary-soft">
-                      <input type="radio" name="interview-type" value={type} defaultChecked={type === 'personal'} className="accent-primary" />
-                      {interviewText[type]}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
               <div>
                 <label htmlFor="job-title" className="block text-sm font-medium">{interviewText.jobTitle}</label>
                 <input
