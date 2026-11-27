@@ -141,62 +141,42 @@
   .dashboard-verse + .dashboard-verse {
     mask-position: center 89.6%;
   }
+}
 
-  .room-photo-motion {
-    animation: room-breath 48s ease-in-out infinite alternate;
-    transform-origin: center 55%;
+@media (max-height: 600px) {
+  .presentation-setup-header {
+    min-height: 3.25rem;
+    padding-block: 0.25rem;
   }
 
-  .audience-motion {
-    pointer-events: none;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
+  .presentation-setup-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .audience-reacting {
-    animation-duration: 1.65s;
-    animation-timing-function: ease-in-out;
-    animation-fill-mode: both;
+  .presentation-setup-hero {
+    display: none;
   }
 
-  .audience-reacting-nod { animation-name: audience-nod; }
-  .audience-reacting-shift { animation-name: audience-shift; }
-  .audience-reacting-glance { animation-name: audience-glance; }
-  .audience-reacting-note { animation-name: audience-note; }
-}
+  .presentation-setup-form {
+    overflow-y: auto;
+    padding-block: 0.5rem;
+  }
 
-@keyframes room-breath {
-  from { transform: scale(1); }
-  to { transform: scale(1.018); }
-}
+  .presentation-setup-form-content > div:first-child {
+    margin-bottom: 0.5rem;
+  }
 
-@keyframes audience-nod {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  35% { transform: translateY(-4px) rotate(-1.4deg); }
-  65% { transform: translateY(2px) rotate(0.45deg); }
-}
+  .presentation-setup-form-content > div:nth-child(2) {
+    gap: 0.75rem;
+  }
 
-@keyframes audience-shift {
-  0%, 100% { transform: translateX(0) rotate(0); }
-  38% { transform: translateX(4px) rotate(1.4deg); }
-  72% { transform: translateX(-2px) rotate(-0.7deg); }
-}
+  .presentation-setup-form-content > div:nth-child(3),
+  .presentation-setup-form-content > p {
+    margin-top: 0.75rem;
+  }
 
-@keyframes audience-glance {
-  0%, 100% { transform: rotate(0); }
-  40% { transform: rotate(1.8deg); }
-  70% { transform: rotate(-1.2deg); }
-}
-
-@keyframes audience-note {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  32% { transform: translateY(4px) rotate(1.2deg); }
-  68% { transform: translateY(-2px) rotate(-0.6deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .room-photo-motion,
-  .audience-reacting {
-    animation: none;
+  .presentation-setup-form-content > div:last-child {
+    margin-top: 0.75rem;
   }
 }

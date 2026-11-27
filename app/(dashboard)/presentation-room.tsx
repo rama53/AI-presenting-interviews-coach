@@ -24,18 +24,12 @@ import {
   X,
 } from 'lucide-react'
 import type { DashboardCopy, Language } from './copy'
-import audienceImage from './taleek-audience-room.png'
 
 type Phase = 'setup' | 'running' | 'paused' | 'finished'
 type AmbientCue = 'murmur' | 'rustle' | 'cough' | 'chair'
 type AudienceDifficulty = 'relaxed' | 'engaged' | 'challenging'
-type AudienceReactionKind = 'nod' | 'shift' | 'glance' | 'note'
 
-const audiencePeople = [
-  { x: 9, y: 53 }, { x: 20, y: 52 }, { x: 31, y: 47 }, { x: 43, y: 54 },
-  { x: 54, y: 50 }, { x: 66, y: 55 }, { x: 78, y: 50 }, { x: 90, y: 54 },
-  { x: 27, y: 37 }, { x: 48, y: 37 }, { x: 71, y: 36 },
-]
+const audienceVideoSrc = `${(process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? '').replace(/\/$/, '')}/audience-small.mp4`
 
 type PresentationRoomProps = {
   language: Language
@@ -65,12 +59,12 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
   const [mediaErrorKind, setMediaErrorKind] = useState<'camera' | 'microphone' | null>(null)
-  const [activeReaction, setActiveReaction] = useState<{ index: number; kind: AudienceReactionKind; revision: number } | null>(null)
   const [slidesVisible, setSlidesVisible] = useState(false)
   const [slidesCollapsed, setSlidesCollapsed] = useState(false)
   const [slidesWidth, setSlidesWidth] = useState(360)
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false)
   const roomRef = useRef<HTMLElement>(null)
+  const audienceVideoRef = useRef<HTMLVideoElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const microphoneStreamRef = useRef<MediaStream | null>(null)
@@ -209,21 +203,16 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
   }, [phase])
 
   useEffect(() => {
-    if (phase !== 'running') return
-    let timer: number
-    const scheduleReaction = () => {
-      const baseDelay = difficulty === 'relaxed' ? 6500 : difficulty === 'challenging' ? 3400 : 4800
-      timer = window.setTimeout(() => {
-        const index = Math.floor(Math.random() * audiencePeople.length)
-        const kinds: AudienceReactionKind[] = ['nod', 'shift', 'glance', 'note']
-        const kind = kinds[Math.floor(Math.random() * kinds.length)]
-        setActiveReaction((current) => ({ index, kind, revision: (current?.revision ?? 0) + 1 }))
-        scheduleReaction()
-      }, baseDelay + Math.random() * 4800)
+    const audienceVideo = audienceVideoRef.current
+    if (!audienceVideo) return
+
+    if (phase === 'paused' || phase === 'finished') {
+      audienceVideo.pause()
+      return
     }
-    scheduleReaction()
-    return () => window.clearTimeout(timer)
-  }, [difficulty, phase])
+
+    void audienceVideo.play().catch(() => {})
+  }, [phase])
 
   useEffect(() => {
     if (phase !== 'running' || ambientVolume === 0) return
@@ -346,8 +335,8 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
 
   if (phase === 'setup') {
     return (
-      <main dir={language === 'ar' ? 'rtl' : 'ltr'} className="min-h-[100svh] bg-sidebar text-sidebar-foreground">
-        <header className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 sm:px-7">
+      <main dir={language === 'ar' ? 'rtl' : 'ltr'} className="presentation-setup flex h-[100svh] flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
+        <header className="presentation-setup-header flex min-h-16 items-center justify-between gap-4 px-4 py-3 sm:px-7">
           <button type="button" onClick={onClose} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring">
             <ArrowLeft aria-hidden="true" className="size-4 rtl:rotate-180" />
             <span>{text.back}</span>
@@ -358,9 +347,9 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
           </div>
         </header>
 
-        <div className="grid min-h-[calc(100svh-4rem)] lg:grid-cols-[1.08fr_0.92fr]">
-          <section className="relative isolate flex min-h-[17rem] flex-col justify-end overflow-hidden p-6 sm:p-10 lg:min-h-[calc(100svh-4rem)] lg:p-14">
-            <div role="img" aria-label={language === 'ar' ? 'جمهور يستمع إلى عرض في قاعة محاضرات' : 'An audience listening to a presentation in a lecture room'} className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${audienceImage.src})` }} />
+        <div className="presentation-setup-grid grid min-h-0 flex-1 grid-rows-[minmax(9rem,24svh)_minmax(0,1fr)] lg:grid-cols-[1.08fr_0.92fr] lg:grid-rows-1">
+          <section className="presentation-setup-hero relative isolate flex min-h-0 flex-col justify-end overflow-hidden p-6 sm:p-10 lg:p-14">
+            <video ref={audienceVideoRef} src={audienceVideoSrc} autoPlay loop muted playsInline aria-hidden="true" className="absolute inset-0 size-full object-cover object-center" />
             <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-sidebar via-sidebar/45 to-sidebar/10" />
             <div className="relative max-w-xl">
               <p className="text-xs font-semibold tracking-[0.18em] text-sidebar-primary">{roomText.setupEyebrow}</p>
@@ -369,8 +358,8 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
             </div>
           </section>
 
-          <section aria-labelledby="presentation-setup-title" className="flex items-center justify-center bg-background px-5 py-8 text-foreground sm:px-8 lg:px-12">
-            <form onSubmit={startSession} className="w-full max-w-lg">
+          <section aria-labelledby="presentation-setup-title" className="presentation-setup-form flex items-center justify-center bg-background px-5 py-8 text-foreground sm:px-8 lg:px-12">
+            <form onSubmit={startSession} className="presentation-setup-form-content w-full max-w-lg">
               <div className="mb-6">
                 <span className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{roomText.setupEyebrow}</span>
                 <h2 id="presentation-setup-title" className="mt-2 text-2xl font-semibold text-foreground">{text.modes.presentation.setup}</h2>
@@ -418,24 +407,9 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
   }
 
   return (
-    <main ref={roomRef} dir={language === 'ar' ? 'rtl' : 'ltr'} aria-label={roomText.roomTitle} className="relative flex min-h-[100svh] flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
-      <div aria-hidden="true" className="room-photo-motion absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${audienceImage.src})` }} />
+    <main ref={roomRef} dir={language === 'ar' ? 'rtl' : 'ltr'} aria-label={roomText.roomTitle} className="relative flex h-[100svh] flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
+      <video ref={audienceVideoRef} src={audienceVideoSrc} autoPlay loop muted playsInline aria-hidden="true" className="absolute inset-0 size-full object-cover object-center" />
       <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-sidebar/25 via-sidebar/5 to-sidebar/45" />
-      {activeReaction && (() => {
-        const person = audiencePeople[activeReaction.index]
-        return (
-          <div
-            key={activeReaction.revision}
-            aria-hidden="true"
-            className={`audience-motion absolute inset-0 bg-cover bg-center audience-reacting audience-reacting-${activeReaction.kind}`}
-            style={{
-              backgroundImage: `url(${audienceImage.src})`,
-              maskImage: `radial-gradient(ellipse 5vw 7vh at ${person.x}% ${person.y}%, #000 0%, rgb(0 0 0 / 0.8) 43%, transparent 100%)`,
-              transformOrigin: `${person.x}% ${person.y}%`,
-            }}
-          />
-        )
-      })()}
 
       <header className="relative z-10 flex min-h-16 items-center gap-3 border-b border-white/10 bg-sidebar/30 px-4 py-3 backdrop-blur-sm sm:px-7">
         <div className="flex min-w-0 flex-1 items-center gap-3">
