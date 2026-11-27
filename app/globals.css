@@ -138,6 +138,14 @@
     mask-position: center 17.35%;
   }
 
+  /* Leave out the detached Qaf dots in the first verse artwork. */
+  .dashboard-verse:first-child {
+    clip-path: polygon(evenodd,
+      0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+      41.75% 32.9%, 43.65% 32.9%, 43.65% 45.3%, 41.75% 45.3%, 41.75% 32.9%
+    );
+  }
+
   .dashboard-verse + .dashboard-verse {
     mask-position: center 89.6%;
   }
