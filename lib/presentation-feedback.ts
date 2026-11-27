@@ -28,9 +28,9 @@ export function questionFromSlides(transcript: string, slides: string[], languag
   return { text, audio: null }
 }
 
-export type VoiceSamples = { voiced: number; pitch: number[] }
+export type VoiceSamples = { voiced: number; pitch: number[]; lastVoicedAt?: number }
 
-export function sampleVoice(samples: VoiceSamples, frame: Float32Array, sampleRate: number) {
+export function sampleVoice(samples: VoiceSamples, frame: Float32Array, sampleRate: number, now = performance.now()) {
   // Decimate to keep the correlation small while preserving the speech pitch range.
   const stride = Math.max(1, Math.floor(sampleRate / 6000))
   let energy = 0
@@ -56,6 +56,7 @@ export function sampleVoice(samples: VoiceSamples, frame: Float32Array, sampleRa
     const correlation = left && right ? product / Math.sqrt(left * right) : 0
     if (previous > 0.75 && correlation < previous && previous === peak) {
       samples.pitch.push(rate / period)
+      samples.lastVoicedAt = now
       return
     }
     if (correlation > peak) {

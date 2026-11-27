@@ -543,7 +543,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             </p>
           )}
         </aside>}
-        {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} analyzeBody={!isInterview} />}
+        {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} analyzeBody={!isInterview} voice={!isInterview ? voiceSamples.current : undefined} />}
         {!isInterview && !paused && speech.status === 'listening' && <PresentationVoiceMonitor samples={voiceSamples.current} />}
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
         {(speech.status === 'unavailable' || speech.status === 'error') && <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">{ar ? 'التفريغ الصوتي غير متاح. تحقق من المايك أو استخدم Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.'}</p>}

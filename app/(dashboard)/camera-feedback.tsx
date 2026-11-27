@@ -2,15 +2,17 @@
 
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { FaceLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision'
-import { sampleBodyFrame, sampleCameraFrame, type CameraSamples } from '@/lib/camera-feedback'
+import { resetBodyTracking, sampleBodyFrame, sampleCameraFrame, type CameraSamples } from '@/lib/camera-feedback'
+import type { VoiceSamples } from '@/lib/presentation-feedback'
 import type { Language } from './copy'
 
-export function CameraFeedback({ preview, samples, language, paused, analyzeBody }: {
+export function CameraFeedback({ preview, samples, language, paused, analyzeBody, voice }: {
   preview: RefObject<HTMLVideoElement | null>
   samples: CameraSamples
   language: Language
   paused: boolean
   analyzeBody: boolean
+  voice?: VoiceSamples
 }) {
   const ar = language === 'ar'
   const [status, setStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading')
@@ -72,7 +74,8 @@ export function CameraFeedback({ preview, samples, language, paused, analyzeBody
         if (poseLandmarker.current && now - previousPoseSample >= 500) {
           previousPoseSample = now
           try {
-            sampleBodyFrame(samples, poseLandmarker.current.detectForVideo(video, now).landmarks[0])
+            const speaking = now - (voice?.lastVoicedAt ?? -Infinity) < 450
+            sampleBodyFrame(samples, poseLandmarker.current.detectForVideo(video, now).landmarks[0], speaking, now)
           } catch {
             poseLandmarker.current.close()
             poseLandmarker.current = null
@@ -85,8 +88,9 @@ export function CameraFeedback({ preview, samples, language, paused, analyzeBody
     return () => {
       window.clearInterval(timer)
       samples.turnedFrames = 0
+      resetBodyTracking(samples)
     }
-  }, [paused, preview, samples, status])
+  }, [paused, preview, samples, status, voice])
 
   if (status === 'ready') return null
   return (
@@ -122,6 +126,10 @@ export function CameraFeedbackReport({ samples, previous, language }: {
           <h3 className="font-semibold">{ar ? 'لغة الجسد والإطار' : 'Body language and framing'}</h3>
           <p>{ar ? 'ظهور الكتفين معًا' : 'Both shoulders visible'} · <bdi>{Math.round(100 * samples.shouldersVisible / samples.bodySamples)}%</bdi></p>
           <p>{ar ? 'ظهور يد واحدة على الأقل' : 'At least one hand visible'} · <bdi>{Math.round(100 * samples.handsVisible / samples.bodySamples)}%</bdi></p>
+          {samples.sustainedTilts > 0 && <p>{ar ? 'ظهر ميل جانبي مستمر للكتفين في بعض العينات. جرّب إعادة الجلوس أو الوقوف بمنتصف الإطار.' : 'Your shoulders tilted to one side for some sustained periods. Try resetting your position near the center of the frame.'}</p>}
+          {samples.speakingHandSamples >= 6 && (
+            <p>{ar ? 'حركات يد ملحوظة بالتزامن مع الصوت' : 'Noticeable hand movements during voiced speech'} · <bdi>{samples.speakingGestures}</bdi></p>
+          )}
           {samples.handsVisible < samples.bodySamples / 3 && <p>{ar ? 'إذا كنت تستخدم الإيماءات للشرح، وسّع الإطار حتى تظهر يداك.' : 'If you use gestures to explain a point, widen the frame so your hands can be seen.'}</p>}
         </div>
       )}
