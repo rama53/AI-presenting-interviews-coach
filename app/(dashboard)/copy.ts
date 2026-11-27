@@ -13,7 +13,7 @@ export const copy = {
       ['فالحُرُّ لا يَخْشى المَلامةَ في الهُدى', 'ويَعيشُ بَيْنَ العالَمينَ سامِحًا'],
     ],
     intro: 'ادخل غرفة افتراضية لتحاكي مقابلتك القادمة أو عرضك التقديمي. أرفق مادة العرض أو تفاصيل المقابلة لتحصل على تقييم مفصّل لأدائك، يستند إلى لغة جسدك ونبرة صوتك ومدى وضوحك في التعبير عن أفكارك.',
-    options: 'خيارات التدريب',
+    options: 'شو حابّ تتدرّب اليوم؟',
     emptyHistory: 'أكمل جلسة تدريب لتعود إلى موضوعها ومعايير التقييم هنا.',
     complete: 'اكتمل التدريب',
     assessment: 'معايير تقييم الذكاء الاصطناعي',
@@ -26,9 +26,8 @@ export const copy = {
     back: 'العودة إلى خيارات التدريب',
     modes: {
       presentation: {
-        title: 'العرض التقديمي',
-        description: 'تمرّن على العرض الذي تنوي تقديمه. يشمل التقييم محتوى عرضك ولغة جسدك ونبرة صوتك.',
-        action: 'إعداد تدريب العرض',
+        title: 'عرض تقديمي',
+        description: 'تدرّب على شرح أفكارك وتقديم مادّتك بوضوح.',
         setup: 'إعداد تدريب العرض',
         running: 'التدريب على العرض',
         prompt: 'اختر عرضًا تنوي تقديمه وتدرّب عليه بصوت مسموع. ابدأ بالفكرة الرئيسية، واشرح أهم نقاطك، واختتم بما تريد أن يتذكره جمهورك.',
@@ -39,9 +38,8 @@ export const copy = {
         ],
       },
       interview: {
-        title: 'المقابلة',
-        description: 'استعد لمقابلتك القادمة. تدرّب على الإجابة عن سؤال شائع، وحوّل موقفًا من خبرتك إلى قصة واضحة تُبرز دورك وأثره.',
-        action: 'إعداد تدريب المقابلة',
+        title: 'مقابلة عمل',
+        description: 'تمرّن على أسئلة المقابلة وطريقة عرض خبرتك.',
         setup: 'إعداد تدريب المقابلة',
         running: 'التدريب على المقابلة',
         prompt: 'حدّثني عن موقف اضطررت فيه إلى حل مشكلة بمعلومات محدودة. ماذا فعلت، وما النتيجة؟',
@@ -58,7 +56,7 @@ export const copy = {
     recent: 'Recent sessions',
     title: [['Practice today.'], ['Speak with confidence tomorrow.']],
     intro: 'Step into a virtual room to rehearse your next interview or presentation. Attach your presentation materials or interview details to get a detailed assessment of your performance based on your body language, tone of voice, and how clearly you express your ideas.',
-    options: 'Practice options',
+    options: 'What would you like to practice today?',
     emptyHistory: 'Complete a practice session to revisit its prompt and assessment criteria here.',
     complete: 'Practice complete',
     assessment: 'AI assessment criteria',
@@ -72,8 +70,7 @@ export const copy = {
     modes: {
       presentation: {
         title: 'Presentation',
-        description: 'Rehearse the presentation you plan to give. The assessment covers your content, body language, and tone of voice.',
-        action: 'Set up presentation',
+        description: 'Rehearse explaining your ideas and presenting your material clearly.',
         setup: 'Presentation setup',
         running: 'Presentation practice',
         prompt: 'Choose a presentation you plan to give and rehearse it aloud. Open with your main idea, explain your key points, and close with what you want the audience to remember.',
@@ -84,9 +81,8 @@ export const copy = {
         ],
       },
       interview: {
-        title: 'Interview',
-        description: 'Prepare for your next interview with a common question. Turn a real experience into a clear answer that shows what you did and the difference it made.',
-        action: 'Set up interview',
+        title: 'Job interview',
+        description: 'Practice interview questions and how to talk about your experience.',
         setup: 'Interview setup',
         running: 'Interview practice',
         prompt: 'Tell me about a time you had to solve a problem with limited information. What did you do, and what happened?',

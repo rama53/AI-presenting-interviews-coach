@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, AudioLines, MessageSquareText } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { copy, type Language } from './copy'
 import { LanguageSelect } from './language-select'
 import { DashboardSidebar } from './dashboard-sidebar'
@@ -98,36 +96,43 @@ export function DashboardPage() {
           <p className="mx-auto mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
-        <section id="practice" aria-label={text.options} className="mt-6 grid scroll-mt-6 gap-4 sm:grid-cols-2 lg:gap-5">
-          {practiceOptions.map((option) => {
-            const Icon = option.icon
-            const mode = text.modes[option.id]
-            return (
-              <Card key={option.id} className="rounded-3xl border border-border bg-card p-0 shadow-sm ring-0">
-                <CardContent className="flex h-full flex-col p-5 sm:p-7">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sidebar-highlight text-sidebar">
-                      <Icon aria-hidden="true" className="size-5" />
-                    </span>
-                    <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{mode.title}</h2>
-                  </div>
-                  <p className="mt-4 flex-1 text-sm leading-loose text-muted-foreground">{mode.description}</p>
-                  <Button
-                    size="lg"
+        <section id="practice" aria-labelledby="practice-title" className="mt-6 scroll-mt-6 rounded-3xl border border-border bg-card">
+          <h2 id="practice-title" className="px-5 pb-3 pt-5 text-lg font-semibold sm:px-7 sm:pt-6 sm:text-xl">
+            {text.options}
+          </h2>
+          <ul className="divide-y divide-border">
+            {practiceOptions.map((option) => {
+              const Icon = option.icon
+              const mode = text.modes[option.id]
+              const titleId = `practice-${option.id}-title`
+              const descriptionId = `practice-${option.id}-description`
+
+              return (
+                <li key={option.id} className="last:[&>button]:rounded-b-3xl">
+                  <button
                     type="button"
                     id={`choose-${option.id}`}
+                    aria-labelledby={titleId}
+                    aria-describedby={descriptionId}
                     onClick={() => {
                       practiceTrigger.current = option.id
                       setSelectedPractice(option)
                     }}
-                    className="mt-5 min-h-11 w-full justify-between gap-3 rounded-xl px-4 hover:bg-primary-hover"
+                    className="flex w-full items-center gap-3 px-5 py-4 text-start transition-colors hover:bg-primary-soft focus-visible:bg-primary-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:gap-4 sm:px-7"
                   >
-                    {mode.action}<ArrowRight aria-hidden="true" data-icon="inline-end" className="rtl:rotate-180" />
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
+                      <Icon aria-hidden="true" className="size-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span id={titleId} className="block font-semibold">{mode.title}</span>
+                      <span id={descriptionId} className="mt-0.5 block text-sm leading-relaxed text-muted-foreground">{mode.description}</span>
+                    </span>
+                    <ArrowRight aria-hidden="true" className="size-5 shrink-0 text-primary rtl:rotate-180" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </section>
 
         <RecentSessions sessions={sessions} text={text} language={language} />
