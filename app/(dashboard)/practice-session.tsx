@@ -311,10 +311,10 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
         {isInterview ? (
-          <div className="absolute inset-0 flex items-start justify-center pt-20 pb-44">
-            <div className="relative h-full max-w-full aspect-[3/2]">
-              <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="h-full w-full object-contain" />
-              <div dir="ltr" className="absolute inset-x-0 bottom-0 grid grid-cols-3 gap-1 text-center">
+          <div className="absolute inset-0">
+            <div className="relative h-full w-full">
+              <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="h-full w-full object-cover object-center" />
+              <div dir="ltr" className="absolute inset-x-[5%] top-[66%] grid grid-cols-3 gap-1 text-center">
                 {interviewerRoles.map((role, index) => <span key={role} className={`mx-auto rounded-lg px-2 py-1 text-xs font-semibold ${index === activeInterviewer && !interviewComplete ? 'bg-amber-300 text-slate-900' : 'bg-black/75 text-white'}`}>{role}{index === activeInterviewer && speakingInterviewer ? (ar ? ' · يتحدث' : ' · Speaking') : ''}</span>)}
               </div>
             </div>
@@ -375,7 +375,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
             : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
         {isInterview && (
-          <section className="absolute inset-x-4 bottom-28 mx-auto max-w-3xl text-center sm:bottom-28">
+          <section className="absolute inset-x-4 bottom-28 mx-auto max-w-3xl rounded-xl bg-black/65 px-3 py-2 text-center backdrop-blur-sm sm:bottom-28">
             {interviewComplete ? (
               <p role="status" className="text-sm">{ar ? 'انتهت الأسئلة. أنهي التدريب لعرض التقرير.' : 'Questions complete. End the session to see your report.'}</p>
             ) : (
