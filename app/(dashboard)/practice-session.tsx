@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
 import { buildAudienceQuestion } from '@/lib/transcript-analysis'
 import { AudienceQuestion } from './audience-question'
-import { AudienceGaze, AudienceGazeReport } from './audience-gaze'
-import { emptyGazeCounts, type GazeCalibration } from '@/lib/audience-gaze'
+import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
+import { emptyCameraSamples, type CameraSamples } from '@/lib/camera-feedback'
 import { PracticeAnalysis } from './practice-analysis'
 import type { DashboardCopy, Language } from './copy'
 import type { InterviewType } from './recent-sessions'
@@ -64,9 +64,8 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const [slides, setSlides] = useState(false)
   const [slideUrl, setSlideUrl] = useState('')
   const [mediaError, setMediaError] = useState(false)
-  const gazeCalibration = useRef<GazeCalibration>({})
-  const gazeCounts = useRef(emptyGazeCounts())
-  const previousGaze = useRef<ReturnType<typeof emptyGazeCounts> | null>(null)
+  const cameraSamples = useRef(emptyCameraSamples())
+  const previousCameraSamples = useRef<CameraSamples | null>(null)
   const preview = useRef<HTMLVideoElement>(null)
   const streams = useRef<Partial<Record<'camera', MediaStream>>>({})
   const pending = useRef(new Set<string>())
@@ -207,8 +206,8 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     const settings = roomSettings.current
     if (!settings || speech.busy) return
 
-    previousGaze.current = gazeCounts.current
-    gazeCounts.current = emptyGazeCounts()
+    previousCameraSamples.current = cameraSamples.current
+    cameraSamples.current = emptyCameraSamples()
     setPreparingQuestion(false)
     setPreviousAttempt(speech.transcript)
     speech.setTranscript('')
@@ -262,7 +261,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           <div className="flex items-center justify-between p-3"><span>{ar ? 'الشرائح' : 'Slides'}</span><button type="button" onClick={() => setSlides(false)} aria-label={ar ? 'إغلاق' : 'Close'}><X size={18}/></button></div>
           {slideUrl ? <iframe title={ar ? 'الشرائح' : 'Slides'} src={slideUrl} className="min-h-0 flex-1 bg-white"/> : <p className="p-4 text-sm">{attachment ? (ar ? 'حوّل الشرائح إلى PDF للمعاينة' : 'Convert slides to PDF for preview') : (ar ? 'لم يتم إرفاق شرائح' : 'No slides attached')}</p>}
         </aside>}
-        {camera && <AudienceGaze preview={preview} calibration={gazeCalibration.current} counts={gazeCounts.current} language={language} paused={paused} slidesOpen={slides && Boolean(slideUrl)} />}
+        {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} />}
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
         <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
           {speech.status === 'unavailable' || speech.status === 'error'
@@ -341,7 +340,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           )}
         </>
       )}
-      {session.phase === 'finished' && !isInterview && <AudienceGazeReport counts={gazeCounts.current} previous={previousGaze.current} language={language} />}
+      {session.phase === 'finished' && !isInterview && <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />}
       {session.phase !== 'ready' && (
         <PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={speech} language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
       )}
