@@ -1,28 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { analyzeTranscript, type AnalysisMode } from '@/lib/transcript-analysis'
 import type { Language } from './copy'
-
-type RecognitionEvent = {
-  results: ArrayLike<ArrayLike<{ transcript: string }>>
-}
-
-type Recognition = {
-  lang: string
-  onresult: ((event: RecognitionEvent) => void) | null
-  onerror: (() => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
-
-type SpeechWindow = Window & {
-  SpeechRecognition?: new () => Recognition
-  webkitSpeechRecognition?: new () => Recognition
-}
+import type { usePracticeTranscript } from './use-practice-transcript'
 
 const labels = {
   ar: {
@@ -55,73 +37,16 @@ const labels = {
   },
 }
 
-export function PracticeAnalysis({ language, mode, running }: {
+export function PracticeAnalysis({ language, mode, running, speech }: {
   language: Language
   mode: AnalysisMode
   running: boolean
+  speech: ReturnType<typeof usePracticeTranscript>
 }) {
   const text = labels[language]
-  const [transcript, setTranscript] = useState('')
   const [showAnalysis, setShowAnalysis] = useState(false)
-  const result = showAnalysis ? analyzeTranscript({ transcript, language, mode }) : null
-  const [status, setStatus] = useState<'idle' | 'listening' | 'stopping' | 'unavailable' | 'error'>('idle')
-  const microphone = useRef<Recognition | null>(null)
-  const busy = status === 'listening' || status === 'stopping'
-
-  useEffect(() => {
-    if (!running && microphone.current) {
-      const active = microphone.current
-      microphone.current = null
-      active.abort()
-    }
-  }, [running])
-
-  useEffect(() => () => {
-    const active = microphone.current
-    microphone.current = null
-    active?.abort()
-  }, [])
-
-  function startMicrophone() {
-    if (microphone.current) return
-    const browser = window as SpeechWindow
-    const SpeechRecognition = browser.SpeechRecognition ?? browser.webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      setStatus('unavailable')
-      return
-    }
-
-    const recognition = new SpeechRecognition()
-    microphone.current = recognition
-    recognition.lang = language === 'ar' ? 'ar-PS' : 'en-US'
-    recognition.onresult = (event) => {
-      if (microphone.current !== recognition) return
-      const spoken = Array.from(event.results, (entry) => entry[0].transcript).join(' ').trim()
-      if (!spoken) return
-      setTranscript((previous) => [previous.trim(), spoken].filter(Boolean).join(' '))
-      setShowAnalysis(false)
-    }
-    recognition.onerror = () => {
-      if (microphone.current === recognition) setStatus('error')
-    }
-    recognition.onend = () => {
-      if (microphone.current !== recognition) return
-      microphone.current = null
-      setStatus((previous) => previous === 'error' ? previous : 'idle')
-    }
-    try {
-      recognition.start()
-      setStatus('listening')
-    } catch {
-      microphone.current = null
-      setStatus('error')
-    }
-  }
-
-  function stopMicrophone() {
-    setStatus('stopping')
-    microphone.current?.stop()
-  }
+  const { transcript, setTranscript, status, busy, startMicrophone, stopMicrophone } = speech
+  const result = showAnalysis || !running ? analyzeTranscript({ transcript, language, mode }) : null
 
   return (
     <section className="mt-5 space-y-3 rounded-xl border border-border bg-background p-4">
@@ -152,9 +77,11 @@ export function PracticeAnalysis({ language, mode, running }: {
           </p>
         </>
       )}
-      <Button type="button" disabled={!transcript.trim()} onClick={() => setShowAnalysis(true)}>
-        {text.analyze}
-      </Button>
+      {running && (
+        <Button type="button" disabled={!transcript.trim()} onClick={() => setShowAnalysis(true)}>
+          {text.analyze}
+        </Button>
+      )}
       {result && (
         <div aria-live="polite" className="space-y-2 text-sm">
           <p>{text.words} · {result.wordCount}</p>
