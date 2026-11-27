@@ -239,13 +239,15 @@ def groq_completion(instructions: str, data: str, *, feedback: bool = False) -> 
     from groq import Groq, APIError
     model = os.getenv("GROQ_FEEDBACK_MODEL", "openai/gpt-oss-120b") if feedback else os.getenv("GROQ_QUESTION_MODEL", "openai/gpt-oss-20b")
     options = {"response_format": {"type": "json_object"}} if feedback else {}
+    if feedback:
+        instructions += "\nReturn exactly one JSON object matching this JSON schema. Do not omit any required field. summary must be a string. All scores must be integers or null where allowed.\n" + json.dumps(InterviewFeedbackOutput.model_json_schema())
     try:
         with Groq(api_key=os.environ["GROQ_API_KEY"], timeout=40 if feedback else 15, max_retries=0) as client:
             result = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "system", "content": instructions}, {"role": "user", "content": data}],
                 temperature=0.3 if feedback else 0.7,
-                max_completion_tokens=3500 if feedback else 1024,
+                max_completion_tokens=5000 if feedback else 1024,
                 **options,
             )
         return (result.choices[0].message.content or "").strip()
@@ -399,6 +401,8 @@ def generate_interview_feedback(
             return report
         except (HTTPError, URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
             print("Groq feedback failed:", getattr(error, "code", type(error).__name__), flush=True)
+            if hasattr(error, "errors"):
+                print("Feedback validation fields:", [(e.get("loc"), e.get("type")) for e in error.errors()], flush=True)
             if not key:
                 raise HTTPException(502, "AI feedback service unavailable") from error
     if key:
