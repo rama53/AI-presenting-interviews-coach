@@ -143,35 +143,60 @@
   }
 
   .room-photo-motion {
-    animation: room-breath 36s ease-in-out infinite alternate;
-    background-position: 42% center;
+    animation: room-breath 48s ease-in-out infinite alternate;
     transform-origin: center 55%;
   }
 
-  .audience-moment {
-    animation: audience-moment-in 420ms ease-out both;
+  .audience-motion {
+    pointer-events: none;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
   }
-}
 
-@media (min-width: 640px) {
-  .room-photo-motion {
-    background-position: center;
+  .audience-reacting {
+    animation-duration: 1.65s;
+    animation-timing-function: ease-in-out;
+    animation-fill-mode: both;
   }
+
+  .audience-reacting-nod { animation-name: audience-nod; }
+  .audience-reacting-shift { animation-name: audience-shift; }
+  .audience-reacting-glance { animation-name: audience-glance; }
+  .audience-reacting-note { animation-name: audience-note; }
 }
 
 @keyframes room-breath {
   from { transform: scale(1); }
-  to { transform: scale(1.035); }
+  to { transform: scale(1.018); }
 }
 
-@keyframes audience-moment-in {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes audience-nod {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  35% { transform: translateY(-4px) rotate(-1.4deg); }
+  65% { transform: translateY(2px) rotate(0.45deg); }
+}
+
+@keyframes audience-shift {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  38% { transform: translateX(4px) rotate(1.4deg); }
+  72% { transform: translateX(-2px) rotate(-0.7deg); }
+}
+
+@keyframes audience-glance {
+  0%, 100% { transform: rotate(0); }
+  40% { transform: rotate(1.8deg); }
+  70% { transform: rotate(-1.2deg); }
+}
+
+@keyframes audience-note {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  32% { transform: translateY(4px) rotate(1.2deg); }
+  68% { transform: translateY(-2px) rotate(-0.6deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .room-photo-motion,
-  .audience-moment {
+  .audience-reacting {
     animation: none;
   }
 }

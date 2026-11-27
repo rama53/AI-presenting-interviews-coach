@@ -7,6 +7,8 @@ import {
   CameraOff,
   Check,
   Clock3,
+  ChevronDown,
+  ChevronUp,
   Eye,
   EyeOff,
   FileText,
@@ -16,16 +18,24 @@ import {
   Minimize2,
   Pause,
   Play,
-  Volume2,
+  SlidersHorizontal,
   VolumeX,
   Waves,
+  X,
 } from 'lucide-react'
 import type { DashboardCopy, Language } from './copy'
 import audienceImage from './taleek-audience-room.png'
 
 type Phase = 'setup' | 'running' | 'paused' | 'finished'
-type AmbientCue = 'murmur' | 'rustle' | 'cough' | 'chair' | 'clap'
+type AmbientCue = 'murmur' | 'rustle' | 'cough' | 'chair'
 type AudienceDifficulty = 'relaxed' | 'engaged' | 'challenging'
+type AudienceReactionKind = 'nod' | 'shift' | 'glance' | 'note'
+
+const audiencePeople = [
+  { x: 9, y: 53 }, { x: 20, y: 52 }, { x: 31, y: 47 }, { x: 43, y: 54 },
+  { x: 54, y: 50 }, { x: 66, y: 55 }, { x: 78, y: 50 }, { x: 90, y: 54 },
+  { x: 27, y: 37 }, { x: 48, y: 37 }, { x: 71, y: 36 },
+]
 
 type PresentationRoomProps = {
   language: Language
@@ -54,7 +64,12 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
   const [showWebcam, setShowWebcam] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
-  const [reaction, setReaction] = useState({ index: 0, revision: 0 })
+  const [mediaErrorKind, setMediaErrorKind] = useState<'camera' | 'microphone' | null>(null)
+  const [activeReaction, setActiveReaction] = useState<{ index: number; kind: AudienceReactionKind; revision: number } | null>(null)
+  const [slidesVisible, setSlidesVisible] = useState(false)
+  const [slidesCollapsed, setSlidesCollapsed] = useState(false)
+  const [slidesWidth, setSlidesWidth] = useState(360)
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false)
   const roomRef = useRef<HTMLElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
@@ -96,38 +111,53 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
 
     const { context, buffer } = engine
     const now = startAt ?? context.currentTime
-    const duration = cue === 'murmur' ? 1.7 : cue === 'cough' ? 0.48 : cue === 'rustle' ? 0.55 : cue === 'chair' ? 0.72 : 0.095
+    const duration = cue === 'murmur' ? 2.2 : cue === 'cough' ? 0.48 : cue === 'rustle' ? 1.05 : 0.85
     const filter = context.createBiquadFilter()
     filter.type = cue === 'murmur' ? 'lowpass' : cue === 'chair' ? 'bandpass' : 'highpass'
-    filter.frequency.value = cue === 'murmur' ? 360 : cue === 'rustle' ? 1500 : cue === 'cough' ? 720 : cue === 'chair' ? 480 : 1750
-    filter.Q.value = cue === 'chair' ? 2.4 : cue === 'cough' ? 0.75 : 0.55
+    filter.frequency.value = cue === 'murmur' ? 260 : cue === 'rustle' ? 1250 : cue === 'cough' ? 820 : 430
+    filter.Q.value = cue === 'chair' ? 2.8 : cue === 'cough' ? 0.8 : 0.55
 
     const source = context.createBufferSource()
     source.buffer = buffer
     source.loop = true
     const gain = context.createGain()
-    const baseVolume = cue === 'murmur' ? 0.026 : cue === 'cough' ? 0.035 : cue === 'chair' ? 0.044 : cue === 'clap' ? 0.13 : 0.04
+    const baseVolume = cue === 'murmur' ? 0.018 : cue === 'cough' ? 0.026 : cue === 'chair' ? 0.032 : 0.025
     const peak = Math.max(0.0001, volume * volumeScale * baseVolume)
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(peak, now + (cue === 'clap' ? 0.009 : 0.07))
-    gain.gain.linearRampToValueAtTime(peak * 0.62, now + duration * 0.42)
+    if (cue === 'rustle') {
+      gain.gain.linearRampToValueAtTime(peak * 0.7, now + 0.11)
+      gain.gain.linearRampToValueAtTime(peak * 0.18, now + 0.34)
+      gain.gain.linearRampToValueAtTime(peak, now + 0.52)
+      gain.gain.linearRampToValueAtTime(peak * 0.42, now + 0.76)
+    } else if (cue === 'cough') {
+      gain.gain.linearRampToValueAtTime(peak, now + 0.06)
+      gain.gain.linearRampToValueAtTime(peak * 0.12, now + 0.16)
+      gain.gain.linearRampToValueAtTime(peak * 0.8, now + 0.25)
+    } else {
+      gain.gain.linearRampToValueAtTime(peak, now + (cue === 'murmur' ? 0.4 : 0.08))
+      gain.gain.linearRampToValueAtTime(peak * 0.5, now + duration * 0.48)
+    }
     gain.gain.linearRampToValueAtTime(0.0001, now + duration)
     source.connect(filter)
     filter.connect(gain)
     gain.connect(context.destination)
     source.start(now)
     source.stop(now + duration + 0.02)
-  }, [getAudioEngine])
 
-  const playApplause = useCallback(() => {
-    const engine = getAudioEngine()
-    if (!engine || volumeRef.current <= 0) return
-    const { context } = engine
-    for (let index = 0; index < 34; index += 1) {
-      const startAt = context.currentTime + index * 0.105 + Math.random() * 0.075
-      playNoise('clap', startAt, 0.9)
+    if (cue === 'murmur') {
+      const tone = context.createOscillator()
+      const toneGain = context.createGain()
+      tone.type = 'sine'
+      tone.frequency.value = 92 + Math.random() * 48
+      toneGain.gain.setValueAtTime(0.0001, now)
+      toneGain.gain.linearRampToValueAtTime(peak * 0.12, now + 0.45)
+      toneGain.gain.linearRampToValueAtTime(0.0001, now + duration)
+      tone.connect(toneGain)
+      toneGain.connect(context.destination)
+      tone.start(now)
+      tone.stop(now + duration + 0.02)
     }
-  }, [getAudioEngine, playNoise])
+  }, [getAudioEngine])
 
   const clearMedia = useCallback(() => {
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
@@ -143,9 +173,8 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
     completedRef.current = true
     setPhase('finished')
     clearMedia()
-    playApplause()
     onCompleteRef.current()
-  }, [clearMedia, playApplause])
+  }, [clearMedia])
   const finishSessionRef = useRef(finishSession)
   finishSessionRef.current = finishSession
 
@@ -183,16 +212,18 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
     if (phase !== 'running') return
     let timer: number
     const scheduleReaction = () => {
-      const baseDelay = difficulty === 'relaxed' ? 9000 : difficulty === 'challenging' ? 4200 : 6500
+      const baseDelay = difficulty === 'relaxed' ? 6500 : difficulty === 'challenging' ? 3400 : 4800
       timer = window.setTimeout(() => {
-        const nextIndex = Math.floor(Math.random() * roomText.reactions.length)
-        setReaction((current) => ({ index: nextIndex, revision: current.revision + 1 }))
+        const index = Math.floor(Math.random() * audiencePeople.length)
+        const kinds: AudienceReactionKind[] = ['nod', 'shift', 'glance', 'note']
+        const kind = kinds[Math.floor(Math.random() * kinds.length)]
+        setActiveReaction((current) => ({ index, kind, revision: (current?.revision ?? 0) + 1 }))
         scheduleReaction()
-      }, baseDelay + Math.random() * 5200)
+      }, baseDelay + Math.random() * 4800)
     }
     scheduleReaction()
     return () => window.clearTimeout(timer)
-  }, [difficulty, phase, roomText.reactions.length])
+  }, [difficulty, phase])
 
   useEffect(() => {
     if (phase !== 'running' || ambientVolume === 0) return
@@ -252,6 +283,7 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
 
   async function toggleCamera() {
     setMediaError(null)
+    setMediaErrorKind(null)
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((track) => track.stop())
       cameraStreamRef.current = null
@@ -269,11 +301,13 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
       setShowWebcam(true)
     } catch {
       setMediaError(roomText.mediaError)
+      setMediaErrorKind('camera')
     }
   }
 
   async function toggleMicrophone() {
     setMediaError(null)
+    setMediaErrorKind(null)
     if (microphoneStreamRef.current) {
       microphoneStreamRef.current.getTracks().forEach((track) => track.stop())
       microphoneStreamRef.current = null
@@ -290,6 +324,7 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
       setMicrophoneStream(stream)
     } catch {
       setMediaError(roomText.mediaError)
+      setMediaErrorKind('microphone')
     }
   }
 
@@ -302,12 +337,12 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
       }
     } catch {
       setMediaError(roomText.mediaError)
+      setMediaErrorKind(null)
     }
   }
 
   const minutes = Math.floor(secondsLeft / 60).toString().padStart(2, '0')
   const seconds = (secondsLeft % 60).toString().padStart(2, '0')
-  const currentReaction = roomText.reactions[reaction.index]
 
   if (phase === 'setup') {
     return (
@@ -358,6 +393,7 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
               <div className="mt-5">
                 <label htmlFor="presentation-slides" className="block text-sm font-medium">{text.presentationFile}</label>
                 <input id="presentation-slides" name="slides" type="file" accept={acceptedSlideTypes} className="mt-1.5 block w-full rounded-xl border border-input bg-card px-3 py-2.5 text-sm file:me-3 file:rounded-lg file:border-0 file:bg-primary-soft file:px-3 file:py-1.5 file:font-medium file:text-primary focus-visible:outline-2 focus-visible:outline-ring" />
+                <p className="mt-1.5 text-xs text-muted-foreground">{roomText.slidesOptional}</p>
               </div>
 
               <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
@@ -384,9 +420,24 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
   return (
     <main ref={roomRef} dir={language === 'ar' ? 'rtl' : 'ltr'} aria-label={roomText.roomTitle} className="relative flex min-h-[100svh] flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
       <div aria-hidden="true" className="room-photo-motion absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${audienceImage.src})` }} />
-      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-sidebar/65 via-sidebar/30 to-sidebar/95" />
+      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-sidebar/25 via-sidebar/5 to-sidebar/45" />
+      {activeReaction && (() => {
+        const person = audiencePeople[activeReaction.index]
+        return (
+          <div
+            key={activeReaction.revision}
+            aria-hidden="true"
+            className={`audience-motion absolute inset-0 bg-cover bg-center audience-reacting audience-reacting-${activeReaction.kind}`}
+            style={{
+              backgroundImage: `url(${audienceImage.src})`,
+              maskImage: `radial-gradient(ellipse 5vw 7vh at ${person.x}% ${person.y}%, #000 0%, rgb(0 0 0 / 0.8) 43%, transparent 100%)`,
+              transformOrigin: `${person.x}% ${person.y}%`,
+            }}
+          />
+        )
+      })()}
 
-      <header className="relative z-10 flex min-h-16 items-center gap-3 border-b border-white/10 px-4 py-3 sm:px-7">
+      <header className="relative z-10 flex min-h-16 items-center gap-3 border-b border-white/10 bg-sidebar/30 px-4 py-3 backdrop-blur-sm sm:px-7">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sidebar-primary/40 bg-sidebar/55 text-sidebar-primary">
             <Waves aria-hidden="true" className="size-5" />
@@ -408,15 +459,23 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
       </header>
 
       <section className="relative z-10 flex min-h-0 flex-1 flex-col" aria-label={roomText.audienceLabel}>
-        <div className="absolute start-4 top-4 max-w-[min(54%,22rem)] sm:start-7 sm:top-6">
-          <p className="text-xs font-medium text-sidebar-muted sm:text-sm">{text.audienceOptions[audienceSize]}</p>
-          <div key={reaction.revision} role="status" aria-live="polite" className="audience-moment mt-2 inline-flex items-center gap-2 rounded-xl border border-white/15 bg-sidebar/70 px-3 py-2 text-xs leading-relaxed shadow-lg backdrop-blur-md sm:text-sm">
-            <span className="size-2 shrink-0 rounded-full bg-sidebar-primary" aria-hidden="true" />
-            <span>{currentReaction}</span>
-          </div>
-        </div>
+        <p className="absolute start-4 top-4 rounded-full border border-white/25 bg-sidebar/45 px-3 py-1.5 text-xs font-medium text-white/90 shadow-sm backdrop-blur-sm sm:start-7 sm:top-6">
+          {text.audienceOptions[audienceSize]}
+        </p>
 
-        <SlidesPanel file={slidesFile} url={slidesUrl} text={roomText} onFileChange={handleSlidesChange} />
+        {slidesVisible && (
+          <SlidesPanel
+            file={slidesFile}
+            url={slidesUrl}
+            text={roomText}
+            collapsed={slidesCollapsed}
+            width={slidesWidth}
+            onFileChange={handleSlidesChange}
+            onWidthChange={setSlidesWidth}
+            onToggleCollapse={() => setSlidesCollapsed((collapsed) => !collapsed)}
+            onClose={() => setSlidesVisible(false)}
+          />
+        )}
 
         {cameraStream && showWebcam && (
           <WebcamPanel videoRef={videoRef} text={roomText} />
@@ -437,17 +496,28 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
         )}
 
         {mediaError && (
-          <p role="alert" className="absolute bottom-4 end-4 z-30 max-w-sm rounded-xl border border-white/15 bg-sidebar/95 px-4 py-3 text-sm text-sidebar-foreground shadow-xl">
-            {mediaError}
-          </p>
+          <div role="alert" className="absolute bottom-4 end-3 z-30 flex max-w-[min(92vw,26rem)] items-center gap-2 rounded-xl border border-white/20 bg-sidebar/75 px-3 py-2 text-xs text-white shadow-lg backdrop-blur-md sm:bottom-5 sm:end-6">
+            <span className="min-w-0 flex-1 leading-relaxed">{mediaError}</span>
+            {mediaErrorKind && (
+              <button
+                type="button"
+                onClick={() => mediaErrorKind === 'camera' ? void toggleCamera() : void toggleMicrophone()}
+                className="shrink-0 rounded-lg bg-sidebar-primary px-2.5 py-1.5 font-semibold text-sidebar-primary-foreground hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring"
+              >
+                {roomText.retry}
+              </button>
+            )}
+            <button type="button" onClick={() => { setMediaError(null); setMediaErrorKind(null) }} aria-label={roomText.dismiss} className="grid size-7 shrink-0 place-items-center rounded-lg text-white/80 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sidebar-ring">
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          </div>
         )}
 
         {phase === 'finished' && (
           <div className="absolute inset-0 z-20 grid place-items-center bg-sidebar/60 px-4 backdrop-blur-sm">
             <section aria-labelledby="presentation-finished-title" className="w-full max-w-md rounded-3xl border border-white/15 bg-sidebar/95 p-7 text-center shadow-2xl sm:p-9">
               <span className="mx-auto grid size-14 place-items-center rounded-full bg-sidebar-primary/15 text-sidebar-primary"><Waves aria-hidden="true" className="size-6" /></span>
-              <p className="mt-5 text-sm font-semibold text-sidebar-primary">{roomText.applause}</p>
-              <h2 id="presentation-finished-title" className="mt-2 text-2xl font-semibold">{roomText.finished}</h2>
+              <h2 id="presentation-finished-title" className="mt-5 text-2xl font-semibold">{roomText.finished}</h2>
               <ul className="mt-5 flex flex-col gap-2 text-start text-sm text-sidebar-muted">
                 {text.modes.presentation.criteria.map((criterion) => <li key={criterion} className="leading-relaxed">{criterion}</li>)}
               </ul>
@@ -460,49 +530,68 @@ export function PresentationRoom({ language, languageControl, text, defaultMinut
       </section>
 
       {phase !== 'finished' && (
-      <footer className="relative z-10 px-3 pb-3 sm:px-6 sm:pb-5">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-sidebar/85 p-2.5 shadow-2xl backdrop-blur-xl sm:gap-4 sm:p-3">
-          <div className="flex min-w-[13rem] flex-1 items-center gap-3 px-1 sm:min-w-[16rem]">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              {ambientVolume === 0 ? <VolumeX aria-hidden="true" className="size-4 shrink-0 text-sidebar-muted" /> : <Volume2 aria-hidden="true" className="size-4 shrink-0 text-sidebar-primary" />}
-              <label htmlFor="ambient-volume" className="sr-only">{roomText.ambientVolume}</label>
-              <input id="ambient-volume" type="range" min="0" max="70" value={ambientVolume} onChange={handleVolumeChange} className="h-2 w-full cursor-pointer accent-sidebar-primary" />
-              <span className="w-8 text-end text-xs tabular-nums text-sidebar-muted"><bdi dir="ltr">{ambientVolume}%</bdi></span>
+        <footer className="relative z-10 px-2 pb-2 sm:px-5 sm:pb-4">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/20 bg-sidebar/75 p-1.5 shadow-xl backdrop-blur-xl sm:gap-3 sm:p-2">
+            <div className="flex items-center gap-1.5">
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label={roomText.soundSettings}
+                  aria-haspopup="true"
+                  aria-expanded={soundSettingsOpen}
+                  aria-controls="room-sound-settings"
+                  onClick={() => setSoundSettingsOpen((open) => !open)}
+                  className="inline-flex size-9 items-center justify-center rounded-lg border border-white/15 bg-sidebar/55 text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring"
+                >
+                  {ambientVolume === 0 ? <VolumeX aria-hidden="true" className="size-4" /> : <SlidersHorizontal aria-hidden="true" className="size-4 text-sidebar-primary" />}
+                </button>
+                {soundSettingsOpen && (
+                  <div id="room-sound-settings" role="group" aria-label={roomText.soundSettings} className="absolute bottom-full start-0 mb-2 w-56 rounded-xl border border-white/15 bg-sidebar/95 p-3 shadow-2xl backdrop-blur-xl">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label htmlFor="ambient-volume" className="text-xs font-medium">{roomText.ambientVolume}</label>
+                      <span className="text-xs tabular-nums text-sidebar-muted"><bdi dir="ltr">{ambientVolume}%</bdi></span>
+                    </div>
+                    <input id="ambient-volume" type="range" min="0" max="70" value={ambientVolume} onChange={handleVolumeChange} className="h-2 w-full cursor-pointer accent-sidebar-primary" />
+                  </div>
+                )}
+              </div>
+              <label className="sr-only" htmlFor="audience-difficulty">{roomText.difficultyLabel}</label>
+              <select id="audience-difficulty" value={difficulty} onChange={(event) => setDifficulty(event.currentTarget.value as AudienceDifficulty)} aria-describedby="audience-difficulty-hint" className="max-w-28 rounded-lg border border-white/15 bg-sidebar-accent px-2 py-2 text-xs text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring sm:max-w-36 sm:px-3">
+                <option value="relaxed">{roomText.difficultyOptions[0]}</option>
+                <option value="engaged">{roomText.difficultyOptions[1]}</option>
+                <option value="challenging">{roomText.difficultyOptions[2]}</option>
+              </select>
+              <span id="audience-difficulty-hint" className="sr-only">{roomText.difficultyHint}</span>
             </div>
-            <label className="sr-only" htmlFor="audience-difficulty">{roomText.difficultyLabel}</label>
-            <select id="audience-difficulty" value={difficulty} onChange={(event) => setDifficulty(event.currentTarget.value as AudienceDifficulty)} aria-describedby="audience-difficulty-hint" className="max-w-28 rounded-lg border border-white/15 bg-sidebar-accent px-2 py-2 text-xs text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring sm:max-w-36 sm:px-3 sm:text-sm">
-              <option value="relaxed">{roomText.difficultyOptions[0]}</option>
-              <option value="engaged">{roomText.difficultyOptions[1]}</option>
-              <option value="challenging">{roomText.difficultyOptions[2]}</option>
-            </select>
-            <span id="audience-difficulty-hint" className="sr-only">{roomText.difficultyHint}</span>
-          </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            <RoomIconButton label={cameraStream ? roomText.disableCamera : roomText.enableCamera} onClick={toggleCamera} active={Boolean(cameraStream)}>
-              {cameraStream ? <Camera aria-hidden="true" className="size-[18px]" /> : <CameraOff aria-hidden="true" className="size-[18px]" />}
-            </RoomIconButton>
-            <RoomIconButton label={microphoneStream ? roomText.disableMicrophone : roomText.enableMicrophone} onClick={toggleMicrophone} active={Boolean(microphoneStream)}>
-              {microphoneStream ? <Mic aria-hidden="true" className="size-[18px]" /> : <MicOff aria-hidden="true" className="size-[18px]" />}
-            </RoomIconButton>
-            {cameraStream && (
-              <RoomIconButton label={showWebcam ? roomText.hideWebcam : roomText.showWebcam} onClick={() => setShowWebcam((visible) => !visible)} active={showWebcam}>
-                {showWebcam ? <EyeOff aria-hidden="true" className="size-[18px]" /> : <Eye aria-hidden="true" className="size-[18px]" />}
+            <div className="flex flex-wrap items-center justify-center gap-1">
+              <RoomIconButton label={cameraStream ? roomText.disableCamera : roomText.enableCamera} onClick={toggleCamera} active={Boolean(cameraStream)}>
+                {cameraStream ? <Camera aria-hidden="true" className="size-4" /> : <CameraOff aria-hidden="true" className="size-4" />}
               </RoomIconButton>
-            )}
-            <RoomIconButton label={phase === 'paused' ? roomText.resume : roomText.pause} onClick={() => setPhase((current) => current === 'paused' ? 'running' : 'paused')}>
-              {phase === 'paused' ? <Play aria-hidden="true" className="size-[18px]" /> : <Pause aria-hidden="true" className="size-[18px]" />}
-            </RoomIconButton>
-            <RoomIconButton label={isFullscreen ? roomText.exitFullscreen : roomText.fullscreen} onClick={toggleFullscreen}>
-              {isFullscreen ? <Minimize2 aria-hidden="true" className="size-[18px]" /> : <Maximize2 aria-hidden="true" className="size-[18px]" />}
-            </RoomIconButton>
-            <button type="button" onClick={finishSession} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sidebar-primary px-3 text-xs font-semibold text-sidebar-primary-foreground transition-colors hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring sm:px-4 sm:text-sm">
-              <span>{roomText.endSession}</span>
-            </button>
+              <RoomIconButton label={microphoneStream ? roomText.disableMicrophone : roomText.enableMicrophone} onClick={toggleMicrophone} active={Boolean(microphoneStream)}>
+                {microphoneStream ? <Mic aria-hidden="true" className="size-4" /> : <MicOff aria-hidden="true" className="size-4" />}
+              </RoomIconButton>
+              {cameraStream && (
+                <RoomIconButton label={showWebcam ? roomText.hideWebcam : roomText.showWebcam} onClick={() => setShowWebcam((visible) => !visible)} active={showWebcam}>
+                  {showWebcam ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
+                </RoomIconButton>
+              )}
+              <button type="button" aria-label={slidesVisible ? roomText.hideSlides : roomText.showSlides} title={slidesVisible ? roomText.hideSlides : roomText.showSlides} aria-expanded={slidesVisible} onClick={() => setSlidesVisible((visible) => !visible)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring ${slidesVisible ? 'border-sidebar-primary/60 bg-sidebar-accent text-sidebar-primary' : 'border-white/15 bg-sidebar/60 text-sidebar-foreground hover:bg-sidebar-accent'}`}>
+                <FileText aria-hidden="true" className="size-4" />
+                <span className="hidden sm:inline">{slidesVisible ? roomText.hideSlides : roomText.showSlides}</span>
+              </button>
+              <RoomIconButton label={phase === 'paused' ? roomText.resume : roomText.pause} onClick={() => setPhase((current) => current === 'paused' ? 'running' : 'paused')}>
+                {phase === 'paused' ? <Play aria-hidden="true" className="size-4" /> : <Pause aria-hidden="true" className="size-4" />}
+              </RoomIconButton>
+              <RoomIconButton label={isFullscreen ? roomText.exitFullscreen : roomText.fullscreen} onClick={toggleFullscreen}>
+                {isFullscreen ? <Minimize2 aria-hidden="true" className="size-4" /> : <Maximize2 aria-hidden="true" className="size-4" />}
+              </RoomIconButton>
+              <button type="button" onClick={finishSession} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-sidebar-primary px-2.5 text-xs font-semibold text-sidebar-primary-foreground transition-colors hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring sm:px-3">
+                {roomText.endSession}
+              </button>
+            </div>
           </div>
-        </div>
-        <p className="mx-auto mt-2 max-w-6xl px-2 text-center text-[11px] text-sidebar-muted">{roomText.privacyNote}</p>
-      </footer>
+        </footer>
       )}
     </main>
   )
@@ -515,45 +604,60 @@ function RoomIconButton({ label, onClick, active = false, children }: {
   children: ReactNode
 }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} className={`inline-flex size-11 items-center justify-center rounded-xl border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring ${active ? 'border-sidebar-primary/60 bg-sidebar-accent text-sidebar-primary' : 'border-white/15 bg-sidebar/60 text-sidebar-foreground hover:bg-sidebar-accent'}`}>
+    <button type="button" aria-label={label} title={label} onClick={onClick} className={`inline-flex size-9 items-center justify-center rounded-lg border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-ring ${active ? 'border-sidebar-primary/60 bg-sidebar-accent text-sidebar-primary' : 'border-white/15 bg-sidebar/60 text-sidebar-foreground hover:bg-sidebar-accent'}`}>
       {children}
     </button>
   )
 }
 
-function SlidesPanel({ file, url, text, onFileChange }: {
+function SlidesPanel({ file, url, text, collapsed, width, onFileChange, onWidthChange, onToggleCollapse, onClose }: {
   file: File | null
   url: string | null
   text: DashboardCopy['presentationRoom']
+  collapsed: boolean
+  width: number
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void
+  onWidthChange: (width: number) => void
+  onToggleCollapse: () => void
+  onClose: () => void
 }) {
   return (
-    <aside aria-labelledby="presentation-slides-title" className="absolute end-3 top-4 w-[min(40vw,22rem)] overflow-hidden rounded-2xl border border-white/20 bg-sidebar/85 shadow-xl backdrop-blur-md sm:end-7 sm:top-6">
-      <div className="flex h-9 items-center justify-between gap-2 border-b border-white/10 px-3">
-        <h2 id="presentation-slides-title" className="truncate text-xs font-semibold">{text.slidesTitle}</h2>
+    <aside aria-labelledby="presentation-slides-title" style={{ width: `min(${width}px, calc(100vw - 1.5rem))` }} className="absolute end-3 top-3 z-20 overflow-hidden rounded-2xl border border-white/25 bg-sidebar/90 shadow-2xl backdrop-blur-xl sm:end-6 sm:top-5">
+      <div className="flex min-h-11 items-center gap-2 border-b border-white/10 px-2.5">
         <FileText aria-hidden="true" className="size-4 shrink-0 text-sidebar-primary" />
+        <h2 id="presentation-slides-title" className="min-w-0 flex-1 truncate text-xs font-semibold">{text.slidesTitle}</h2>
+        <label htmlFor="presentation-slides-width" className="sr-only">{text.resizeSlides}</label>
+        <input id="presentation-slides-width" type="range" min="260" max="520" step="10" value={width} onChange={(event) => onWidthChange(Number(event.currentTarget.value))} className="w-14 cursor-ew-resize accent-sidebar-primary sm:w-20" />
+        <button type="button" aria-label={collapsed ? text.expandSlides : text.collapseSlides} aria-expanded={!collapsed} onClick={onToggleCollapse} className="grid size-7 shrink-0 place-items-center rounded-lg text-sidebar-muted hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-sidebar-ring">
+          {collapsed ? <ChevronDown aria-hidden="true" className="size-4" /> : <ChevronUp aria-hidden="true" className="size-4" />}
+        </button>
+        <button type="button" aria-label={text.hideSlides} onClick={onClose} className="grid size-7 shrink-0 place-items-center rounded-lg text-sidebar-muted hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-sidebar-ring">
+          <X aria-hidden="true" className="size-4" />
+        </button>
       </div>
-      <div className="aspect-video bg-black/30">
-        {file && url && file.type === 'application/pdf' ? (
-          <iframe title={`${text.slidesTitle}: ${file.name}`} src={`${url}#toolbar=1&navpanes=0`} className="size-full bg-white" />
-        ) : file && url ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
-            <FileText aria-hidden="true" className="size-6 text-sidebar-primary" />
-            <p className="max-w-full truncate text-xs" dir="auto">{file.name}</p>
-            <a href={url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-sidebar-primary underline underline-offset-4">{text.openFile}</a>
-            <p className="text-[10px] leading-relaxed text-sidebar-muted">{text.slidesUnsupported}</p>
-          </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
-            <FileText aria-hidden="true" className="size-6 text-sidebar-muted" />
-            <p className="text-xs leading-relaxed text-sidebar-muted">{text.slidesEmpty}</p>
-            <label htmlFor="presentation-slides-running" className="cursor-pointer rounded-lg border border-white/15 bg-sidebar-accent px-3 py-1.5 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar">
-              {text.addSlides}
-              <input id="presentation-slides-running" type="file" accept={acceptedSlideTypes} onChange={onFileChange} className="sr-only" />
-            </label>
-          </div>
-        )}
-      </div>
+      {!collapsed && (
+        <div className="aspect-video bg-black/30">
+          {file && url && file.type === 'application/pdf' ? (
+            <iframe title={`${text.slidesTitle}: ${file.name}`} src={`${url}#toolbar=1&navpanes=0`} className="size-full bg-white" />
+          ) : file && url ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
+              <FileText aria-hidden="true" className="size-6 text-sidebar-primary" />
+              <p className="max-w-full truncate text-xs" dir="auto">{file.name}</p>
+              <a href={url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-sidebar-primary underline underline-offset-4">{text.openFile}</a>
+              <p className="text-[10px] leading-relaxed text-sidebar-muted">{text.slidesUnsupported}</p>
+            </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center">
+              <FileText aria-hidden="true" className="size-6 text-sidebar-muted" />
+              <p className="text-xs leading-relaxed text-sidebar-muted">{text.slidesEmpty}</p>
+              <label htmlFor="presentation-slides-running" className="cursor-pointer rounded-lg border border-white/15 bg-sidebar-accent px-3 py-1.5 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar">
+                {text.addSlides}
+                <input id="presentation-slides-running" type="file" accept={acceptedSlideTypes} onChange={onFileChange} className="sr-only" />
+              </label>
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   )
 }
