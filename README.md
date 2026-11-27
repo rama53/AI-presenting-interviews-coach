@@ -42,3 +42,4 @@ The workflow reads the Pages base path from GitHub, builds the static export, an
 ```sh
 NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH=/TALEEK corepack pnpm build
 ```
+
