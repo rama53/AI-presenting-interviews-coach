@@ -258,7 +258,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
               setAudienceQuestion(buildAudienceQuestion(speech.transcript, language))
               togglePause()
             }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">
-              {ar ? 'انتهيت' : 'I’m done'}
+              {ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions'}
             </button>
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
