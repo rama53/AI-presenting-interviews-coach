@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import type { DashboardCopy } from './copy'
+import { PracticeAnalysis } from './practice-analysis'
+import type { DashboardCopy, Language } from './copy'
 import type { InterviewType } from './recent-sessions'
 import { AssessmentCriteria } from './assessment-criteria'
 
@@ -28,9 +29,10 @@ type Session =
   | { phase: 'running'; deadline: number; attachment: File | null; roomOption: number }
   | { phase: 'finished' }
 
-export function PracticeSession({ practice, text, isInterview, onClose, onComplete }: {
+export function PracticeSession({ practice, text, language, isInterview, onClose, onComplete }: {
   practice: Practice
   text: DashboardCopy
+  language: Language
   isInterview: boolean
   onClose: () => void
   onComplete: (interviewType?: InterviewType) => void
@@ -130,6 +132,9 @@ export function PracticeSession({ practice, text, isInterview, onClose, onComple
             </p>
           )}
         </>
+      )}
+      {session.phase !== 'ready' && (
+        <PracticeAnalysis language={language} mode={isInterview ? (interview?.type ?? 'personal') : 'presentation'} running={session.phase === 'running'} />
       )}
       {session.phase === 'ready' ? (
         <form className="mt-4" onSubmit={startPractice}>

@@ -63,6 +63,7 @@ export function DashboardPage() {
         <PracticeSession
           practice={{ ...text.modes[selectedPractice.id], defaultMinutes: selectedPractice.defaultMinutes }}
           text={text}
+          language={language}
           isInterview={selectedPractice.id === 'interview'}
           onClose={() => setSelectedPractice(null)}
           onComplete={(interviewType) => setSessions(saveSession(selectedPractice.id, sessions, interviewType))}
