@@ -22,6 +22,10 @@ export async function readPracticeDocument(file: File, limit: number) {
     if (!document) throw new Error('document')
     return xmlText(await document.async('string'), 't', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main').slice(0, limit)
   }
+  return (await readPdfSlides(file, limit)).join('\n').slice(0, limit)
+}
+
+async function readPdfSlides(file: File, limit = 30000) {
   if (!/\.pdf$/i.test(file.name)) throw new Error('extension')
 
   const { getDocument, GlobalWorkerOptions, version } = await import('pdfjs-dist')
@@ -29,12 +33,15 @@ export async function readPracticeDocument(file: File, limit: number) {
   const task = getDocument({ data: new Uint8Array(await file.arrayBuffer()) })
   try {
     const pdf = await task.promise
-    let text = ''
-    for (let page = 1; page <= Math.min(pdf.numPages, 30) && text.length < limit; page++) {
+    const pages: string[] = []
+    let length = 0
+    for (let page = 1; page <= Math.min(pdf.numPages, 30) && length < limit; page++) {
       const content = await (await pdf.getPage(page)).getTextContent()
-      text += content.items.map((item) => 'str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : '').join('') + '\n'
+      const text = (content.items.map((item) => 'str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : '').join('')).trim().slice(0, limit - length)
+      pages.push(text)
+      length += text.length + 1
     }
-    return text.trim().slice(0, limit)
+    return pages
   } finally {
     await task.destroy()
   }
@@ -42,6 +49,7 @@ export async function readPracticeDocument(file: File, limit: number) {
 
 export async function readPresentationSlides(file: File) {
   validateSize(file)
+  if (/\.pdf$/i.test(file.name)) return readPdfSlides(file)
   const zip = await readArchive(file)
   const paths = Object.keys(zip.files)
     .filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path))

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
 import { questionsFromJobDescription } from '@/lib/job-interview'
 import { analyzeTranscript, buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
+import { PresentationFeedback, PresentationVoiceMonitor } from './presentation-feedback'
+import { questionFromSlides, type VoiceSamples } from '@/lib/presentation-feedback'
 import { AudienceQuestion } from './audience-question'
 import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
 import { emptyCameraSamples, type CameraSamples } from '@/lib/camera-feedback'
@@ -59,7 +61,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const [secondsLeft, setSecondsLeft] = useState(0)
   const startedWithSeconds = useRef(0)
   const [preparingQuestion, setPreparingQuestion] = useState(false)
-  const [audienceQuestion, setAudienceQuestion] = useState<ReturnType<typeof buildAudienceQuestion> | null>(null)
+  const [audienceQuestion, setAudienceQuestion] = useState<{ text: string; audio: string | null } | null>(null)
   const [paused, setPaused] = useState(false)
   const [ambienceMuted, setAmbienceMuted] = useState(false)
   const ambienceRef = useRef<{ context: AudioContext; gain: GainNode } | null>(null)
@@ -115,6 +117,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const [readingJobFile, setReadingJobFile] = useState(false)
   const [readingCvFile, setReadingCvFile] = useState(false)
   const [mediaError, setMediaError] = useState(false)
+  const voiceSamples = useRef<VoiceSamples>({ voiced: 0, pitch: [] })
   const cameraSamples = useRef(emptyCameraSamples())
   const previousCameraSamples = useRef<CameraSamples | null>(null)
   const preview = useRef<HTMLVideoElement>(null)
@@ -291,15 +294,16 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     return () => URL.revokeObjectURL(url)
   }, [attachment])
 
+  const presentationAttachment = !isInterview && session.phase !== 'ready' ? roomSettings.current?.attachment : null
   useEffect(() => {
     setSlideTexts([])
     setSlideIndex(0)
     setSlideStatus('idle')
-    if (!slides || !attachment || !/\.pptx$/i.test(attachment.name)) return
+    if (!presentationAttachment) return
 
     let cancelled = false
     setSlideStatus('loading')
-    void readPresentationSlides(attachment).then((items) => {
+    void readPresentationSlides(presentationAttachment).then((items) => {
       if (cancelled) return
       setSlideTexts(items)
       setSlideStatus('idle')
@@ -307,7 +311,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
       if (!cancelled) setSlideStatus('error')
     })
     return () => { cancelled = true }
-  }, [attachment, slides])
+  }, [presentationAttachment])
 
   async function toggleCamera() {
     const kind = 'camera'
@@ -331,10 +335,10 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   }
 
   useEffect(() => {
-    if (!preparingQuestion || !paused || session.phase !== 'running' || speech.busy) return
-    setAudienceQuestion(buildAudienceQuestion(speech.transcript, language, presentationTopic))
+    if (!preparingQuestion || !paused || session.phase !== 'running' || speech.busy || slideStatus === 'loading') return
+    setAudienceQuestion(questionFromSlides(speech.transcript, slideTexts, language) ?? buildAudienceQuestion(speech.transcript, language, presentationTopic))
     setPreparingQuestion(false)
-  }, [preparingQuestion, paused, session.phase, speech.busy, speech.transcript, language, presentationTopic])
+  }, [preparingQuestion, paused, session.phase, speech.busy, speech.transcript, language, presentationTopic, slideStatus, slideTexts])
 
   useEffect(() => {
     if (!submittingInterviewAnswer || session.phase !== 'running' || speech.busy) return
@@ -458,6 +462,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
 
     previousCameraSamples.current = cameraSamples.current
     cameraSamples.current = emptyCameraSamples()
+    voiceSamples.current = { voiced: 0, pitch: [] }
     setPreparingQuestion(false)
     setPreviousAttempt(speech.transcript)
     speech.setTranscript('')
@@ -538,7 +543,8 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             </p>
           )}
         </aside>}
-        {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} />}
+        {camera && <CameraFeedback preview={preview} samples={cameraSamples.current} language={language} paused={paused} analyzeBody={!isInterview} />}
+        {!isInterview && !paused && speech.status === 'listening' && <PresentationVoiceMonitor samples={voiceSamples.current} />}
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
         {(speech.status === 'unavailable' || speech.status === 'error') && <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">{ar ? 'التفريغ الصوتي غير متاح. تحقق من المايك أو استخدم Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.'}</p>}
         {isInterview && (
@@ -622,6 +628,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             {overall && <div className="flex items-start gap-4 py-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#BCE8D2] text-[#175D43]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8m-8 4h5"/></svg></div><div className="flex-1"><h3 className="font-semibold">{ar ? "محتوى الكلام" : "Speech content"}</h3>{overall.evidence && <p className="mt-1 text-sm text-[#35664F]">{overall.evidence}</p>}<p className="mt-2 text-sm text-[#985321]">{overall.note}</p></div></div>}
             {!overall && <p className="mt-3 text-sm">{ar ? 'لا يوجد نص كافٍ للتحليل.' : 'Not enough transcript for analysis.'}</p>}
             <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />
+            {!isInterview && <PresentationFeedback transcript={transcript} slides={slideTexts} voice={voiceSamples.current} language={language} />}
           </div>
           {isInterview && <><h2 className="text-xl font-bold">{ar ? 'مراجعة الأسئلة والإجابات' : 'Question and answer review'}</h2>
           {reviews.map((r, i) => <details key={i} open={i === 0} className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold"><span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>{r.question}</summary><div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm"><p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p><p dir="auto" className="whitespace-pre-wrap">{r.answer}</p>{r.result && <>{r.result.evidence && <div className="rounded-lg bg-[#D9F3E5] p-3"><h3 className="font-semibold text-[#35664F]">{ar ? 'من كلامك' : 'Evidence from your answer'}</h3><p>{r.result.evidence}</p></div>}<div className="rounded-lg bg-[#FFE5C8] p-3"><h3 className="font-semibold text-[#985321]">{ar ? 'فرصة للتحسين' : 'Opportunity to improve'}</h3><p>{r.result.note}</p></div><div className="rounded-lg bg-[#E8DFFF] p-3"><h3 className="font-semibold text-[#66518E]">{ar ? 'قالب للتدريب' : 'Practice template'}</h3><p>{r.result.retry}</p></div></>}</div></details>)}</>}
