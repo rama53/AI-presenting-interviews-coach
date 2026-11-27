@@ -106,12 +106,14 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     const synth = window.speechSynthesis
     const utterance = new SpeechSynthesisUtterance(interviewQuestion)
     utterance.lang = language === 'ar' ? 'ar' : 'en-US'
-    const voices = synth.getVoices().filter(v => v.lang.toLowerCase().startsWith(utterance.lang.split('-')[0]))
-    const preferred = activeInterviewer === 0 ? voices.find(v => /female|zira|samantha|salma|hoda/i.test(v.name)) : voices.find(v => /male|david|daniel|naayf|maj ed/i.test(v.name) && !/female/i.test(v.name))
-    const voice = activeInterviewer === 2 ? voices.find(v => v !== preferred && !/female|zira|samantha|salma|hoda/i.test(v.name)) ?? preferred : preferred ?? voices[activeInterviewer % Math.max(voices.length, 1)]
+    const voices = synth.getVoices().filter(v => v.lang.toLowerCase().startsWith(utterance.lang.split('-')[0])).sort((a, b) => Number(/natural|neural|premium|enhanced|google/i.test(b.name)) - Number(/natural|neural|premium|enhanced|google/i.test(a.name)))
+    const female = /female|zira|samantha|salma|hoda|aria|jenny|sonia|laila/i
+    const male = /david|daniel|naayf|majed|guy|ryan|ahmed|hamdan|male/i
+    const maleVoices = voices.filter(v => male.test(v.name) && !female.test(v.name))
+    const voice = activeInterviewer === 0 ? voices.find(v => female.test(v.name)) ?? voices[0] : maleVoices[activeInterviewer - 1] ?? maleVoices[0] ?? voices[activeInterviewer % Math.max(voices.length, 1)]
     if (voice) utterance.voice = voice
-    utterance.pitch = [1.12, 0.95, 0.78][activeInterviewer]
-    utterance.rate = [0.95, 1, 0.9][activeInterviewer]
+    utterance.pitch = 1
+    utterance.rate = [0.98, 1, 0.96][activeInterviewer]
     utterance.onstart = () => setSpeakingInterviewer(true)
     utterance.onend = utterance.onerror = () => setSpeakingInterviewer(false)
     synth.cancel()
@@ -309,7 +311,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
     return createPortal(
       <section ref={roomRef} className="fixed inset-0 z-[100] isolate overflow-hidden bg-[#101d2c] text-white" aria-labelledby="practice-session-heading">
         {isInterview ? (
-          <div className="absolute inset-0 flex items-start justify-center pt-20 pb-64">
+          <div className="absolute inset-0 flex items-start justify-center pt-20 pb-44">
             <div className="relative h-full max-w-full aspect-[3/2]">
               <img src={`${process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH ?? ''}/Three-Person%20Office%20Interview%20Panel.png`} alt={ar ? 'ثلاثة محاورين' : 'Three interviewers'} className="h-full w-full object-contain" />
               <div dir="ltr" className="absolute inset-x-0 bottom-0 grid grid-cols-3 gap-1 text-center">
@@ -369,27 +371,17 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
         {mediaError && <p role="alert" className="absolute bottom-32 start-4 rounded-lg bg-black/85 p-3 text-sm">{ar ? 'تحقق من أذونات الكاميرا والمايك' : 'Check camera and microphone permissions'}</p>}
         <p role="status" className="absolute end-4 top-24 max-w-xs rounded-lg bg-black/80 p-2 text-xs">
           {speech.status === 'unavailable' || speech.status === 'error'
-            ? (ar ? 'التفريغ غير متاح. بإمكانك تكتبي جوابك.' : 'Transcription unavailable. You can type your answer.')
+            ? (ar ? 'التفريغ الصوتي غير متاح. تحققي من المايك أو جرّبي Chrome.' : 'Voice transcription unavailable. Check your microphone or try Chrome.')
             : (ar ? 'قد يرسل المتصفح الصوت إلى خدمة تحويل الكلام إلى نص عند تشغيل المايك.' : 'Your browser may send audio to a transcription service when the mic is on.')}
         </p>
         {isInterview && (
-          <section className="absolute inset-x-4 bottom-36 mx-auto max-h-[calc(100dvh-13rem)] max-w-2xl space-y-2 overflow-auto rounded-2xl border border-white/20 bg-[#142332]/95 p-3 shadow-xl sm:bottom-32 sm:p-4">
+          <section className="absolute inset-x-4 bottom-28 mx-auto max-w-3xl text-center sm:bottom-28">
             {interviewComplete ? (
-              <p role="status">{ar ? 'خلصت أسئلة هالمقابلة. اضغطي «إنهاء التدريب» حتى تشوفي إجاباتك.' : 'All questions are complete. End the session to review your answers.'}</p>
+              <p role="status" className="text-sm">{ar ? 'انتهت الأسئلة. أنهي التدريب لعرض التقرير.' : 'Questions complete. End the session to see your report.'}</p>
             ) : (
               <>
-                <p className="text-xs text-amber-200">{ar ? 'السؤال' : 'Question'} {interviewTurns.length + 1} · {interviewerRoles[activeInterviewer]}</p>
-                <p aria-live="polite" className="font-medium">{interviewQuestion}</p>
-                <label className="block text-sm">
-                  {ar ? 'جوابك' : 'Your answer'}
-                  <textarea className="mt-1 block w-full resize-y rounded-lg border border-white/25 bg-black/35 p-2" rows={2} dir="auto" value={speech.transcript} readOnly={submittingInterviewAnswer} onChange={(event) => speech.setTranscript(event.target.value)} />
-                </label>
-                <button type="button" disabled={paused || submittingInterviewAnswer || (!speech.busy && !speech.transcript.trim())} onClick={() => {
-                  setSubmittingInterviewAnswer(true)
-                  stopMicrophone()
-                }} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#142332] disabled:opacity-50">
-                  {submittingInterviewAnswer ? (ar ? 'جاري تجهيز السؤال…' : 'Preparing the next question…') : (ar ? 'إرسال الجواب والسؤال التالي' : 'Submit answer and continue')}
-                </button>
+                <p aria-live="polite" className="mx-auto max-h-16 overflow-auto text-sm font-medium leading-relaxed text-white">{interviewQuestion}</p>
+                <p role="status" className="mt-1 text-xs text-white/70">{speakingInterviewer ? (ar ? 'المحاور يتحدث' : 'Interviewer speaking') : speech.busy ? (ar ? 'جاري الاستماع…' : 'Listening…') : (ar ? 'اضغطي المايك للإجابة' : 'Tap the mic to answer')}</p>
               </>
             )}
           </section>
@@ -411,6 +403,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
                 ? (ar ? 'جاري تحضير السؤال…' : 'Preparing the question…')
                 : (ar ? 'انتهيت وجاهز لاستقبال الأسئلة' : 'I’m done and ready for questions')}
             </button>}
+            {isInterview && !interviewComplete && <button type="button" disabled={paused || speakingInterviewer || submittingInterviewAnswer || (!speech.busy && !speech.transcript.trim())} onClick={() => { setSubmittingInterviewAnswer(true); stopMicrophone() }} className="rounded-xl border border-white/25 px-3 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50">{submittingInterviewAnswer ? (ar ? 'جاري التحضير…' : 'Preparing…') : (ar ? 'السؤال التالي' : 'Next question')}</button>}
             <span className="h-8 w-px bg-white/20"/>
             <button type="button" onClick={finish} className="flex items-center gap-2 rounded-2xl bg-[#c65b40] px-3 py-3 text-xs font-semibold hover:bg-[#ad4931]"><Square size={16} fill="currentColor"/> {text.finish}</button>
           </div>
