@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation } from 'lucide-react'
+import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation, Volume2, VolumeX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
 import { questionsFromJobDescription } from '@/lib/job-interview'
@@ -56,6 +56,42 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   const [preparingQuestion, setPreparingQuestion] = useState(false)
   const [audienceQuestion, setAudienceQuestion] = useState<ReturnType<typeof buildAudienceQuestion> | null>(null)
   const [paused, setPaused] = useState(false)
+  const [ambienceMuted, setAmbienceMuted] = useState(false)
+  const ambienceRef = useRef<{ context: AudioContext; gain: GainNode } | null>(null)
+  const ambienceRoom = isInterview ? 'office' : session.phase === 'running' && session.roomOption === 1 ? 'hall' : 'meeting'
+  useEffect(() => {
+    if (session.phase !== 'running' || !('AudioContext' in window)) return
+    const context = new AudioContext()
+    const gain = context.createGain()
+    gain.gain.value = 0
+    gain.connect(context.destination)
+    const buffer = context.createBuffer(1, context.sampleRate * 8, context.sampleRate)
+    const data = buffer.getChannelData(0)
+    let brown = 0
+    for (let i = 0; i < data.length; i++) {
+      brown = (brown + 0.02 * (Math.random() * 2 - 1)) / 1.02
+      data[i] = brown * 3.5
+    }
+    const source = context.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    const filter = context.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = ambienceRoom === 'office' ? 230 : ambienceRoom === 'hall' ? 520 : 350
+    source.connect(filter).connect(gain)
+    source.start()
+    ambienceRef.current = { context, gain }
+    const resume = () => { void context.resume().catch(() => {}) }
+    resume()
+    window.addEventListener('pointerdown', resume)
+    return () => {
+      window.removeEventListener('pointerdown', resume)
+      ambienceRef.current = null
+      source.stop()
+      void context.close().catch(() => {})
+    }
+  }, [session.phase, ambienceRoom])
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const [videoError, setVideoError] = useState('')
   const [videoBlocked, setVideoBlocked] = useState(false)
@@ -98,6 +134,13 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
   )
   const interviewQuestion = interviewFollowUp ?? (language === 'ar' ? 'عرّفنا بنفسك واحكي عن خبراتك وسبب اهتمامك بالوظيفة.' : 'Tell us about yourself, your experience, and why you are interested in this role.')
   const [speakingInterviewer, setSpeakingInterviewer] = useState(false)
+  useEffect(() => {
+    const audio = ambienceRef.current
+    if (!audio) return
+    const level = ambienceMuted || paused || speech.busy || speakingInterviewer || audienceQuestion ? 0 : ambienceRoom === 'hall' ? 0.055 : 0.035
+    audio.gain.gain.setTargetAtTime(level, audio.context.currentTime, 0.15)
+  }, [session.phase, ambienceRoom, ambienceMuted, paused, speech.busy, speakingInterviewer, audienceQuestion])
+
   const activeInterviewer = interviewTurns.length % 3
   const interviewerRoles = language === 'ar' ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
   useEffect(() => {
@@ -397,6 +440,7 @@ export function PracticeSession({ practice, text, language, isInterview, onClose
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-3xl border border-white/15 bg-[#142332]/90 p-2 shadow-2xl backdrop-blur-xl sm:gap-3 sm:p-3">
             {[
               { label: ar ? 'المايك' : 'Mic', active: speech.busy, Icon: speech.busy ? Mic : MicOff, action: () => { if (speech.status === 'listening') stopMicrophone(); else if (!paused && !speech.busy && !submittingInterviewAnswer && !interviewComplete && !speakingInterviewer) speech.startMicrophone() } },
+              { label: ar ? 'صوت الخلفية' : 'Ambience', active: !ambienceMuted, Icon: ambienceMuted ? VolumeX : Volume2, action: () => setAmbienceMuted(v => !v) },
               { label: ar ? 'الكاميرا' : 'Camera', active: camera, Icon: camera ? Video : VideoOff, action: () => void toggleCamera() },
               ...(!isInterview ? [{ label: ar ? 'الشرائح' : 'Slides', active: slides, Icon: Presentation, action: () => setSlides(v => !v) }] : []),
               { label: paused ? (ar ? 'استئناف' : 'Resume') : (ar ? 'إيقاف مؤقت' : 'Pause'), active: paused, Icon: paused ? Play : Pause, action: () => { setPreparingQuestion(false); togglePause() } },
