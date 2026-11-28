@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowRight, LockKeyhole, Mail } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -8,7 +9,8 @@ import { useAccount } from '@/app/account-provider'
 import { sessionApiEnabled, signIn } from '@/lib/practice-session-api'
 import taleeqLogo from '../(dashboard)/taleeq-logo.png'
 
-const inputClass = 'mt-2 block min-h-12 w-full rounded-xl border border-input bg-background px-4 text-start text-base transition-colors hover:border-primary-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+const inputClass = 'block min-h-[3.25rem] w-full rounded-xl border border-input bg-white ps-11 pe-4 text-start text-base text-sidebar shadow-sm transition-colors hover:border-primary-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+const inputIconClass = 'pointer-events-none absolute start-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-muted-foreground'
 
 export function LoginForm() {
   const router = useRouter()
@@ -50,23 +52,24 @@ export function LoginForm() {
     <main
       lang={english ? 'en' : 'ar'}
       dir={english ? 'ltr' : 'rtl'}
-      className="grid min-h-dvh place-items-center bg-sidebar px-4 py-10 sm:px-6 sm:py-14"
+      className="login-background grid min-h-dvh place-items-center bg-sidebar px-4 py-10 sm:px-6 sm:py-12"
     >
-      <div className="flex w-full max-w-[26rem] flex-col items-center gap-7 sm:gap-9">
+      <div className="flex w-full max-w-[28rem] flex-col items-center gap-8 sm:gap-10">
         <div className="login-logo">
           <Image
             src={taleeqLogo}
             alt={english ? 'Taleeq' : 'طليق'}
-            className="h-auto w-32 brightness-0 invert sm:w-40"
+            className="h-auto w-48 scale-x-105 brightness-0 invert sm:w-56"
             loading="eager"
           />
         </div>
 
         <section
           aria-labelledby="login-title"
-          className="login-card w-full rounded-[2rem] border border-border bg-card px-6 py-7 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.65)] sm:px-9 sm:py-9"
+          className="login-card relative w-full rounded-[1.75rem] border border-white/70 bg-card px-6 pb-6 pt-8 shadow-[0_32px_76px_-32px_rgba(4,10,20,0.9)] sm:px-10 sm:pb-8 sm:pt-10"
         >
-          <h1 id="login-title" className="mb-7 text-center text-[1.75rem] font-semibold leading-tight text-sidebar">
+          <div aria-hidden="true" className="mb-4 h-1 w-9 rounded-full bg-sidebar-highlight" />
+          <h1 id="login-title" className="mb-7 text-[1.875rem] font-semibold leading-tight text-sidebar">
             {english ? 'Sign in' : 'تسجيل الدخول'}
           </h1>
 
@@ -74,20 +77,26 @@ export function LoginForm() {
             <p className="text-sm">{english ? 'Signed in as' : 'الحساب الحالي'} <bdi>{account.email}</bdi></p>
           ) : sessionApiEnabled ? (
             <form onSubmit={handleSubmit} className="grid gap-5" aria-busy={signingIn}>
-              <label className="text-sm font-medium">
+              <label className="grid gap-2 text-sm font-semibold text-sidebar">
                 {english ? 'Email' : 'البريد الإلكتروني'}
-                <input name="email" type="email" autoComplete="username" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
+                <span className="relative block" dir="ltr">
+                  <Mail aria-hidden="true" className={inputIconClass} />
+                  <input name="email" type="email" autoComplete="username" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
+                </span>
               </label>
               <label className="text-sm font-medium">
                 {english ? 'Password' : 'كلمة المرور'}
-                <input name="password" type="password" autoComplete="current-password" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
+                <span className="relative block" dir="ltr">
+                  <LockKeyhole aria-hidden="true" className={inputIconClass} />
+                  <input name="password" type="password" autoComplete="current-password" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
+                </span>
               </label>
               {failed && (
                 <p role="alert" className="text-sm text-destructive">
                   {english ? 'Could not sign in. Check your account details and try again.' : 'تعذّر تسجيل الدخول. تحقّق من بيانات حسابك وحاول مرة أخرى.'}
                 </p>
               )}
-              <button type="submit" disabled={!ready || signingIn} className="mt-1 min-h-12 rounded-xl bg-sidebar px-4 font-semibold text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar disabled:opacity-60">
+              <button type="submit" disabled={!ready || signingIn} className="mt-2 min-h-[3.25rem] rounded-xl bg-primary px-4 font-semibold text-primary-foreground shadow-[0_6px_16px_-8px_var(--primary)] transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60">
                 {signingIn ? (english ? 'Signing in…' : 'جارٍ تسجيل الدخول…') : (english ? 'Sign in' : 'تسجيل الدخول')}
               </button>
             </form>
@@ -95,25 +104,33 @@ export function LoginForm() {
             <p className="text-sm text-muted-foreground">{english ? 'Sign-in is unavailable in this environment.' : 'تسجيل الدخول غير متاح في هذه النسخة.'}</p>
           )}
 
-          <Link href="/" className="mt-6 flex min-h-10 items-center justify-center border-t border-border pt-3 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-sidebar focus-visible:outline-2 focus-visible:outline-offset-2">
+          <Link href="/" className="mt-6 flex min-h-10 items-center justify-center gap-2 border-t border-border pt-3 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2">
+            <ArrowRight aria-hidden="true" className="size-4 ltr:rotate-180" />
             {english ? 'Back to the dashboard' : 'العودة إلى لوحة التحكم'}
           </Link>
         </section>
       </div>
 
       <style jsx>{`
+        .login-background {
+          background-image:
+            radial-gradient(ellipse at 87% 14%, rgba(203, 105, 61, 0.21), transparent 41%),
+            radial-gradient(ellipse at 15% 80%, rgba(57, 104, 150, 0.28), transparent 48%),
+            linear-gradient(150deg, #192c46 0%, #111f33 76%);
+        }
+
         @media (prefers-reduced-motion: no-preference) {
           .login-logo {
-            animation: login-logo-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+            animation: login-logo-rise 1400ms cubic-bezier(0.45, 0, 0.24, 1) both;
           }
 
           .login-card {
-            animation: login-card-enter 430ms ease-out 620ms both;
+            animation: login-card-enter 620ms ease-out 1320ms both;
           }
 
           @keyframes login-logo-rise {
-            0%, 22% {
-              transform: translateY(clamp(3rem, 13vh, 7rem));
+            0%, 26% {
+              transform: translateY(clamp(5rem, 20vh, 11rem));
             }
 
             100% {
@@ -124,7 +141,7 @@ export function LoginForm() {
           @keyframes login-card-enter {
             from {
               opacity: 0;
-              transform: translateY(1rem);
+              transform: translateY(1.5rem);
             }
 
             to {
