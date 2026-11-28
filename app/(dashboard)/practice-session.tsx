@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { usePracticeTranscript } from './use-practice-transcript'
 import { questionsFromJobDescription } from '@/lib/job-interview'
 import { analyzeTranscript, buildAudienceQuestion, nextInterviewQuestion } from '@/lib/transcript-analysis'
-import { PresentationAIReview, presentationAIAvailable, requestPresentationAI } from './presentation-ai-review'
+import { PresentationAIReview, presentationAIAvailable, requestPresentationAI, type AudienceAnswer, type PresentationReview } from './presentation-ai-review'
 import { PresentationFeedback, PresentationVoiceMonitor } from './presentation-feedback'
 import { questionFromSlides, type VoiceSamples } from '@/lib/presentation-feedback'
 import { AudienceQuestion } from './audience-question'
@@ -66,6 +66,8 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const [usePresentationAI, setUsePresentationAI] = useState(false)
   const [preparingQuestion, setPreparingQuestion] = useState(false)
   const [audienceQuestion, setAudienceQuestion] = useState<{ text: string; audio: string | null } | null>(null)
+  const [audienceAnswer, setAudienceAnswer] = useState<AudienceAnswer | null>(null)
+  const [presentationReview, setPresentationReview] = useState<{ transcript: string; result: PresentationReview } | null>(null)
   const [paused, setPaused] = useState(false)
   const [ambienceMuted, setAmbienceMuted] = useState(false)
   const ambienceRef = useRef<{ context: AudioContext; gain: GainNode } | null>(null)
@@ -517,6 +519,8 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     autoFinishAttempted.current = false
     resetRecording()
     setAudienceQuestion(null)
+    setAudienceAnswer(null)
+    setPresentationReview(null)
     setPaused(false)
     setSlides(false)
     setCamera(false)
@@ -525,6 +529,14 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     setVideoBlocked(false)
     setSecondsLeft(startedWithSeconds.current)
     setSession({ phase: 'running', deadline: Date.now() + startedWithSeconds.current * 1000, ...settings })
+  }
+
+  function closeAudienceQuestion(answer: string, next: () => void) {
+    if (audienceQuestion && answer.trim()) {
+      setAudienceAnswer({ question: audienceQuestion.text, answer: answer.trim() })
+    }
+    setAudienceQuestion(null)
+    next()
   }
 
   const minutes = Math.floor(secondsLeft / 60)
@@ -644,13 +656,12 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           {finishError && <p role="alert" className="mt-2 text-center text-sm text-white">{finishError}</p>}
         </footer>
         {audienceQuestion && (
-          <AudienceQuestion question={audienceQuestion} language={language} onClose={() => {
-            setAudienceQuestion(null)
-            togglePause()
-          }} onFinish={() => {
-            setAudienceQuestion(null)
-            finish()
-          }} />
+          <AudienceQuestion
+            question={audienceQuestion}
+            language={language}
+            onClose={(answer) => closeAudienceQuestion(answer, togglePause)}
+            onFinish={(answer) => closeAudienceQuestion(answer, finish)}
+          />
         )}
       </section>, document.body
     )
@@ -671,9 +682,15 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
         const reviews = turns.map((turn, index) => ({ ...turn, result: analyzeTranscript({ transcript: turn.answer, language, mode: index % 3 === 1 ? 'technical' : 'personal' }) }))
         const overall = analyzeTranscript({ transcript, language, mode: isInterview ? 'personal' : 'presentation', presentationTopic })
         const notes = [...new Set(isInterview ? reviews.flatMap(r => r.result ? [r.result.note] : []) : overall ? [overall.note] : [])].slice(0, 3)
+        const presentationResult = presentationReview?.transcript === transcript ? presentationReview.result : null
+        const audienceFeedback = presentationResult?.audience_feedback
+        const presentationComments = [
+          ...(presentationResult && transcript.trim() ? [presentationResult.summary, presentationResult.strength, presentationResult.gap, presentationResult.next_step] : []),
+          ...(audienceFeedback ? [audienceFeedback.feedback, audienceFeedback.improvement] : []),
+        ]
         const savedComments = (aiFeedback
           ? [aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.answers.flatMap(answer => [answer.feedback, answer.improvement]), ...aiFeedback.action_plan]
-          : notes).filter(Boolean).slice(0, 30).map(comment => comment.slice(0, 2000))
+          : [...notes, ...presentationComments]).filter(Boolean).slice(0, 30).map(comment => comment.slice(0, 2000))
         const roles = ar ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
         const colors = ['bg-[#FCD4A5] text-[#85420F]', 'bg-[#DCD0FA] text-[#50348A]', 'bg-[#BCE8D2] text-[#175D43]']
         const stats = [{ label: ar ? 'مدة التدريب التقريبية' : 'Approximate duration', value: Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0') }, { label: isInterview ? (ar ? 'الإجابات' : 'Answers') : (ar ? 'ظهور الوجه' : 'Face visibility'), value: isInterview ? turns.length : cameraSamples.current.total >= 8 ? Math.round(100 * cameraSamples.current.visible / cameraSamples.current.total) + '%' : '—' }, { label: ar ? 'عدد الكلمات' : 'Words', value: words }]
@@ -696,6 +713,13 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             {aiFeedback.answers.map(a => <details key={a.index} className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold">{turns[a.index]?.question}</summary><p className="mt-2 text-sm text-slate-600">{turns[a.index]?.answer}</p><p className="mt-3 text-sm">{a.feedback}</p><p className="mt-3 rounded-lg bg-[#F0F4FA] p-3 text-sm">{a.improvement}</p></details>)}
             <div className="rounded-xl bg-[#DCD0FA] p-4"><h3 className="font-bold">{ar ? 'خطة تطوير مخصصة' : 'Personal action plan'}</h3><ol className="mt-2 list-decimal space-y-2 ps-5 text-sm">{aiFeedback.action_plan.map((item, i) => <li key={i}>{item}</li>)}</ol></div>
           </section>}
+          {!isInterview && !speech.busy && slideStatus !== 'loading' && <PresentationAIReview
+            key={transcript}
+            source={{ transcript, slides: slideTexts, topic: presentationTopic, language, audience_answer: audienceAnswer ?? undefined }}
+            token={accessToken}
+            automatic={usePresentationAI}
+            onResult={setPresentationReview}
+          />}
           <h2 className="text-xl font-bold">{ar ? 'نظرة على أدائك' : 'Performance overview'}</h2>
           <div className="rounded-xl bg-white p-4">
             <details className="mb-3 text-sm text-slate-500"><summary className="cursor-pointer">{text.assessment}</summary><AssessmentCriteria title={text.assessment} criteria={isInterview ? [...new Set([...practice.criteria, ...interviewText.technicalCriteria])] : practice.criteria} /></details>
@@ -703,7 +727,6 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             {!overall && <p className="mt-3 text-sm">{ar ? 'لا يوجد نص كافٍ للتحليل.' : 'Not enough transcript for analysis.'}</p>}
             <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />
             {!isInterview && <PresentationFeedback transcript={transcript} slides={slideTexts} voice={voiceSamples.current} language={language} />}
-            {!isInterview && <PresentationAIReview key={transcript} source={{ transcript, slides: slideTexts, topic: presentationTopic, language }} token={accessToken} />}
           </div>
           {isInterview && <><h2 className="text-xl font-bold">{ar ? 'مراجعة الأسئلة والإجابات' : 'Question and answer review'}</h2>
           {reviews.map((r, i) => <details key={i} open={i === 0} className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold"><span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>{r.question}</summary><div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm"><p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p><p dir="auto" className="whitespace-pre-wrap">{r.answer}</p></div></details>)}</>}
@@ -711,11 +734,11 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           <details className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold">{ar ? 'النص الكامل والمراجعة' : 'Full transcript and revision'}</summary><PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? { ...speech, transcript: interviewReportTranscript, setTranscript: value => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value) } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} /></details>
           {accessToken && remoteSessionId.current && (recordingFile || savedComments.length > 0)
             && recordingState !== 'stopping' && aiFeedbackStatus !== 'loading' && !speech.busy && (
-              <SaveSessionRecording key={remoteSessionId.current} token={accessToken}
+              <SaveSessionRecording key={remoteSessionId.current + (presentationResult ? "-presentation-review" : "")} token={accessToken}
                 sessionId={remoteSessionId.current} arabic={ar} recording={recordingFile} comments={savedComments} />
           )}
           <Button type="button" variant="outline" onClick={() => {
-            const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.result?.note, r.result?.retry].filter(Boolean).join('\n')), transcript, ...notes, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan, ...aiFeedback.answers.map(a => [turns[a.index]?.question, a.feedback, a.improvement].join('\n'))] : [])].join('\n\n')
+            const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.result?.note, r.result?.retry].filter(Boolean).join('\n')), transcript, ...notes, ...(presentationResult?.score != null ? [String(presentationResult.score) + '/100'] : []), ...(audienceFeedback && audienceAnswer ? [audienceAnswer.question, audienceAnswer.answer] : []), ...presentationComments, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan, ...aiFeedback.answers.map(a => [turns[a.index]?.question, a.feedback, a.improvement].join('\n'))] : [])].join('\n\n')
             const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
             const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
           }}>{ar ? 'حفظ التقرير' : 'Download report'}</Button>
@@ -734,7 +757,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           {!isInterview && presentationAIAvailable && (
             <label className="mb-4 flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={usePresentationAI} onChange={(event) => setUsePresentationAI(event.target.checked)} />
-              {language === 'ar' ? 'ولّد سؤال الجمهور باستخدام Groq. عند بدء الأسئلة، سيُرسل نص العرض والشرائح.' : 'Generate the audience question with Groq. Starting Q&A sends the transcript and slide text.'}
+              {language === 'ar' ? 'فعّل سؤال الجمهور وتقييم العرض بالذكاء الاصطناعي. يُرسل نص العرض والشرائح إلى Groq، وتُرسل إجابتك على سؤال الجمهور عند إعداد التقييم.' : 'Enable AI audience questions and presentation feedback. The transcript and slide text are sent to Groq, along with your audience answer when generating feedback.'}
             </label>
           )}
           {isInterview && (

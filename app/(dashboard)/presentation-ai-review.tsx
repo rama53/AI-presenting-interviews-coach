@@ -1,11 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 type Language = 'ar' | 'en'
-type Source = { transcript: string; slides: string[]; topic: string; language: Language }
-type Review = { strength: string; gap: string; next_step: string }
+export type AudienceAnswer = { question: string; answer: string }
+type Source = { transcript: string; slides: string[]; topic: string; language: Language; audience_answer?: AudienceAnswer }
+export type PresentationReview = {
+  score: number | null
+  summary: string
+  strength: string
+  gap: string
+  next_step: string
+  audience_feedback: { feedback: string; improvement: string } | null
+}
 const api = process.env.NEXT_PUBLIC_TALEEQ_API_URL?.replace(/\/$/, '')
 
 export const presentationAIAvailable = Boolean(api)
@@ -19,6 +27,10 @@ export async function requestPresentationAI(source: Source, task: 'question' | '
       ...source,
       transcript: source.transcript.slice(0, 16000),
       slides: source.slides.filter((slide) => slide.trim()).slice(0, 30).map((slide) => slide.slice(0, 1500)),
+      audience_answer: task === 'review' && source.audience_answer ? {
+        question: source.audience_answer.question.slice(0, 500),
+        answer: source.audience_answer.answer.slice(0, 6000),
+      } : undefined,
       task,
     }),
   })
@@ -31,40 +43,53 @@ export async function requestPresentationAI(source: Source, task: 'question' | '
   return response.json()
 }
 
-export function PresentationAIReview({ source, token }: { source: Source; token: string | null }) {
-  const ar = source.language === 'ar'
-  const [result, setResult] = useState<Review | null>(null)
+export function PresentationAIReview({ source, token, automatic, onResult }: {
+  source: Source
+  token: string | null
+  automatic: boolean
+  onResult: (review: { transcript: string; result: PresentationReview }) => void
+}) {
+  const { transcript, slides, topic, language, audience_answer } = source
+  const ar = language === 'ar'
+  const hasTranscript = Boolean(transcript.trim())
+  const canReview = presentationAIAvailable && (hasTranscript || Boolean(audience_answer))
+  const [attempt, setAttempt] = useState(automatic ? 1 : 0)
+  const [result, setResult] = useState<PresentationReview | null>(null)
   const [errorCode, setErrorCode] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
-  const request = useRef<AbortController | null>(null)
-  useEffect(() => () => request.current?.abort(), [])
 
-  if (!api || !source.transcript.trim()) return null
-
-  async function analyze() {
-    if (request.current) return
+  useEffect(() => {
+    if (!canReview || !attempt) return
     const controller = new AbortController()
-    request.current = controller
-    setStatus('loading')
-    setResult(null)
-    try {
-      const response = await requestPresentationAI(source, 'review', token, controller.signal)
-      if (![response.strength, response.gap, response.next_step].every((item) => typeof item === 'string' && item.trim())) {
-        throw new Error('Invalid review')
+    async function analyze() {
+      setStatus('loading')
+      setResult(null)
+      try {
+        const response = await requestPresentationAI({ transcript, slides, topic, language, audience_answer }, 'review', token, controller.signal)
+        const fields = [response.summary, response.strength, response.gap, response.next_step]
+        if (audience_answer) fields.push(response.audience_feedback?.feedback, response.audience_feedback?.improvement)
+        const score = response.score
+        if (!fields.every((item) => typeof item === 'string' && item.trim()) ||
+          (score !== null && (!Number.isInteger(score) || score < 0 || score > 100))) {
+          throw new Error('Invalid review')
+        }
+        if (!controller.signal.aborted) {
+          setResult(response)
+          onResult({ transcript, result: response })
+          setStatus('idle')
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setErrorCode(error instanceof TypeError ? 'connection' : error instanceof Error ? (error.name === 'TimeoutError' ? error.name : error.message) : '')
+          setStatus('error')
+        }
       }
-      if (!controller.signal.aborted) {
-        setResult(response)
-        setStatus('idle')
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setErrorCode(error instanceof TypeError ? 'connection' : error instanceof Error ? (error.name === 'TimeoutError' ? error.name : error.message) : '')
-        setStatus('error')
-      }
-    } finally {
-      request.current = null
     }
-  }
+    void analyze()
+    return () => controller.abort()
+  }, [attempt, canReview, transcript, slides, topic, language, audience_answer, token, onResult])
+
+  if (!canReview) return null
 
   const messages: Record<string, [string, string]> = {
     connection: ['تعذّر الاتصال بالـBackend. تأكّد أن Uvicorn شغّال على المنفذ 8000.', 'Could not reach the backend. Check that Uvicorn is running on port 8000.'],
@@ -81,18 +106,48 @@ export function PresentationAIReview({ source, token }: { source: Source; token:
   }
   const message = messages[errorCode]?.[ar ? 0 : 1]
   return (
-    <section className="mt-4 space-y-3 border-t border-slate-200 pt-4 text-sm">
-      <h3 className="text-base font-semibold">{ar ? 'مراجعة الشرح بالذكاء الاصطناعي' : 'AI review of your explanation'}</h3>
-      <p>{ar ? 'عند طلب المراجعة، يُرسل نص العرض والشرائح إلى Groq.' : 'Requesting a review sends the transcript and slide text to Groq.'}</p>
-      <Button type="button" variant="outline" disabled={status === 'loading'} onClick={analyze}>
-        {status === 'loading' ? (ar ? 'جاري المراجعة…' : 'Reviewing…') : (ar ? 'راجع الشرح' : 'Review my explanation')}
-      </Button>
-      {status === 'error' && <p role="status">{message ?? (ar ? 'تعذّرت مراجعة الشرح بالذكاء الاصطناعي. الملاحظات المحلية متاحة أعلاه.' : 'AI review is unavailable. Local feedback is available above.')}</p>}
-      {result && <dl aria-live="polite" className="space-y-2">
-        <div><dt className="font-semibold">{ar ? 'شو انشرح منيح؟' : 'What worked well?'}</dt><dd>{result.strength}</dd></div>
-        <div><dt className="font-semibold">{ar ? 'شو ضل ناقص؟' : 'What needs more explanation?'}</dt><dd>{result.gap}</dd></div>
-        <div><dt className="font-semibold">{ar ? 'شو تجرّب بالمحاولة الجاية؟' : 'What to try next?'}</dt><dd>{result.next_step}</dd></div>
-      </dl>}
+    <section className="space-y-4 rounded-2xl bg-white p-5 text-[#142B49]">
+      <div className="flex items-center gap-5">
+        {hasTranscript && result?.score != null && (
+          <div dir="ltr" className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-8 border-[#29966B] text-3xl font-bold">
+            {result.score}<span className="text-xs">/100</span>
+          </div>
+        )}
+        <div>
+          <h2 className="text-xl font-bold">{ar ? 'تقييم العرض الذكي' : 'AI presentation review'}</h2>
+          {hasTranscript && result && <p className="mt-2 text-sm">{result.summary}</p>}
+        </div>
+      </div>
+      {!result && status !== 'loading' && (
+        <>
+          {!automatic && <p className="text-sm">{ar ? 'يُرسل طلب التقييم نص العرض والشرائح وإجابة سؤال الجمهور، إن وُجدت، إلى Groq.' : 'Requesting feedback sends the transcript, slides, and any audience answer to Groq.'}</p>}
+          <Button type="button" variant="outline" onClick={() => setAttempt(value => value + 1)}>
+            {status === 'error' ? (ar ? 'إعادة المحاولة' : 'Try again') : (ar ? 'قيّم العرض' : 'Review my presentation')}
+          </Button>
+        </>
+      )}
+      {status === 'loading' && <p role="status" className="animate-pulse text-sm">{ar ? 'جاري تحليل العرض بالذكاء الاصطناعي…' : 'AI is reviewing your presentation…'}</p>}
+      {status === 'error' && <p role="status" className="text-sm">{message ?? (ar ? 'تعذّر تقييم العرض بالذكاء الاصطناعي. الملاحظات المحلية متاحة أدناه.' : 'AI review is unavailable. Local feedback is available below.')}</p>}
+      {result && <div aria-live="polite" className="space-y-4">
+        {hasTranscript && <>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl bg-[#CDEBDD] p-4"><h3 className="font-bold">{ar ? 'نقاط القوة' : 'Strengths'}</h3><p className="mt-2 text-sm">{result.strength}</p></div>
+            <div className="rounded-xl bg-[#FCD4A5] p-4"><h3 className="font-bold">{ar ? 'فرص التحسين' : 'Improvements'}</h3><p className="mt-2 text-sm">{result.gap}</p></div>
+          </div>
+          <div className="rounded-xl bg-[#DCD0FA] p-4"><h3 className="font-bold">{ar ? 'خطة تطوير مخصصة' : 'Personal action plan'}</h3><p className="mt-2 text-sm">{result.next_step}</p></div>
+        </>}
+        {audience_answer && result.audience_feedback && (
+          <>
+            <h3 className="font-bold">{ar ? 'تحليل إجابة سؤال الجمهور' : 'Audience answer analysis'}</h3>
+            <details open className="rounded-xl border border-slate-200 p-4">
+              <summary className="cursor-pointer font-semibold">{audience_answer.question}</summary>
+              <p dir="auto" className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{audience_answer.answer}</p>
+              <p className="mt-3 text-sm">{result.audience_feedback.feedback}</p>
+              <p className="mt-3 rounded-lg bg-[#F0F4FA] p-3 text-sm">{result.audience_feedback.improvement}</p>
+            </details>
+          </>
+        )}
+      </div>}
     </section>
   )
 }
