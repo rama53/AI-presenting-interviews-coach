@@ -1,16 +1,17 @@
 import Image from 'next/image'
 import type { ReactNode } from 'react'
-import { AudioLines, History, LayoutDashboard } from 'lucide-react'
-import type { DashboardCopy } from './copy'
+import { AudioLines, ChartColumn, History, LayoutDashboard } from 'lucide-react'
+import type { DashboardCopy, Language } from './copy'
 import taleeqLogo from './taleeq-logo.png'
 
 const navigation = [
   { label: 'overview', href: '#dashboard', icon: LayoutDashboard },
   { label: 'practice', href: '#practice', icon: AudioLines },
+  { label: 'activity', href: '#activity', icon: ChartColumn },
   { label: 'recent', href: '#recent-sessions', icon: History },
 ] as const
 
-export function DashboardSidebar({ text, children }: { text: DashboardCopy; children: ReactNode }) {
+export function DashboardSidebar({ text, language, children }: { text: DashboardCopy; language: Language; children: ReactNode }) {
   return (
     <aside className="bg-sidebar px-4 py-4 sm:px-8 text-sidebar-foreground lg:w-60 lg:shrink-0 lg:px-5 lg:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 lg:sticky lg:top-8 lg:block">
@@ -24,7 +25,7 @@ export function DashboardSidebar({ text, children }: { text: DashboardCopy; chil
           {navigation.map(({ label, href, icon: Icon }) => (
             <a key={href} href={href} className="flex items-center gap-2 rounded-lg px-2.5 py-2.5 text-sm font-medium text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground">
               <Icon aria-hidden="true" className="size-4" />
-              {text[label]}
+              {label === 'activity' ? (language === 'ar' ? 'نشاطي ودرجاتي' : 'Activity and scores') : text[label]}
             </a>
           ))}
         </nav>

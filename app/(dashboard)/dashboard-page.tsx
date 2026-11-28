@@ -108,7 +108,12 @@ export function DashboardPage() {
 
   return (
     <div id="dashboard" className="dashboard-waves min-h-screen bg-background text-foreground lg:flex">
-      <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
+      <DashboardSidebar text={text} language={language}>
+        {languageSelect}
+        <Link href="/login" className="mt-2 inline-flex min-h-10 items-center rounded-lg bg-sidebar-highlight px-3 text-sm font-semibold text-sidebar-primary-foreground hover:bg-[#ffc09d]">
+          {account ? (ar ? 'حسابي' : 'My account') : (ar ? 'تسجيل الدخول' : 'Sign in')}
+        </Link>
+      </DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
         <header className="px-1 pt-5 pb-3 text-center sm:px-8 sm:pt-7 sm:pb-5">
@@ -132,19 +137,10 @@ export function DashboardPage() {
           <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
-        {sessionApiEnabled && (
-          <section aria-labelledby="account-title" className="mt-5 rounded-2xl border border-border bg-card p-5">
-            <h2 id="account-title" className="mb-3 text-lg font-semibold">{ar ? 'تسجيل الدخول' : 'Sign in'}</h2>
-            {account ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm">{ar ? 'الحساب الحالي' : 'Signed in as'} <bdi>{account.email}</bdi></p>
-                <Button variant="outline" onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
-              </div>
-            ) : (
-              <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2">
-                {ar ? 'انتقلي إلى صفحة تسجيل الدخول' : 'Go to sign in'}
-              </Link>
-            )}
+        {sessionApiEnabled && account && (
+          <section aria-labelledby="account-title" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5">
+            <p id="account-title" className="text-sm">{ar ? 'الحساب الحالي' : 'Signed in as'} <bdi>{account.email}</bdi></p>
+            <Button variant="outline" onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
           </section>
         )}
 
@@ -192,7 +188,14 @@ export function DashboardPage() {
               )
             })}
           </ul>
+          {needsSignIn && (
+            <Link href="/login" className="mt-3 inline-block text-sm font-semibold text-primary underline underline-offset-4">
+              {ar ? 'سجّلي الدخول لبدء التدريب' : 'Sign in to start practicing'}
+            </Link>
+          )}
         </section>
+
+        <TrainingCharts sessions={sessions} language={language} historyMessage={historyMessage} />
 
         <section aria-labelledby="recommendation-title" className="mt-5 rounded-2xl border border-primary-border bg-primary-soft/70 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-5">
           <div className="flex items-start gap-3">
@@ -236,8 +239,6 @@ export function DashboardPage() {
             <ArrowRight aria-hidden="true" className="size-4 rtl:rotate-180" />
           </button>
         </section>
-
-        <TrainingCharts sessions={sessions} language={language} historyMessage={historyMessage} />
 
         <RecentSessions sessions={sessions} text={text} language={language} accessToken={account?.token}
           historyMessage={historyMessage}

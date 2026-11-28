@@ -7,6 +7,7 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
   historyMessage?: string
 }) {
   const ar = language === 'ar'
+  const hasData = !historyMessage && sessions.length > 0
   const recent = sessions.slice(0, 5)
   const formatNumber = new Intl.NumberFormat(language)
   const dateFormat = new Intl.DateTimeFormat(language, { month: 'short', day: 'numeric' })
@@ -47,15 +48,16 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
         <h2 id="activity-title" className="text-xl font-semibold sm:text-2xl">{ar ? 'نشاطك التدريبي' : 'Your practice activity'}</h2>
         <p className="text-sm text-muted-foreground">{ar ? 'من آخر خمس جلسات مكتملة' : 'Based on your last five completed sessions'}</p>
       </div>
-      {historyMessage || recent.length === 0 ? (
+      {!hasData && (
         <p role="status" className="mt-4 rounded-xl border border-dashed border-border bg-card px-5 py-6 text-sm text-muted-foreground">
           {historyMessage ?? (ar ? 'أكمل أول جلسة ليظهر نشاطك هون.' : 'Finish your first session to see your activity here.')}
         </p>
-      ) : (
-        <div className="mt-4 grid overflow-hidden rounded-2xl border border-border bg-card md:grid-cols-[1.55fr_1fr]">
+      )}
+      <div className="mt-4 grid overflow-hidden rounded-2xl border border-border bg-card md:grid-cols-[1.55fr_1fr]">
           <figure className="border-b border-border p-5 sm:p-6 md:border-b-0 md:border-e">
             <figcaption className="font-semibold">{ar ? 'الجلسات حسب اليوم' : 'Sessions by day'}</figcaption>
-            <ul className="mt-4 flex items-end justify-around gap-2" role="list">
+            {hasData && days.size > 0 ? (
+              <ul className="mt-4 flex items-end justify-around gap-2" role="list">
               {Array.from(days, ([key, day]) => (
                 <li key={key} className="min-w-0 flex-1 text-center text-xs text-muted-foreground">
                   <div className="flex h-24 flex-col justify-end border-b border-border px-1 pb-1">
@@ -65,12 +67,15 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
                   <span className="mt-2 block leading-tight">{day.label}</span>
                 </li>
               ))}
-            </ul>
+              </ul>
+            ) : (
+              <div aria-hidden="true" className="mt-4 h-24 rounded-lg border border-dashed border-border bg-background/70" />
+            )}
           </figure>
           <figure className="p-5 sm:p-6">
             <figcaption className="font-semibold">{ar ? 'توزيع أنواع التدريب' : 'Practice by type'}</figcaption>
             <div aria-hidden="true" className="mt-5 flex h-4 overflow-hidden rounded-full bg-muted">
-              {breakdown.map(item => (
+              {hasData && breakdown.map(item => (
                 <span key={item.label} className={item.color} style={{ width: `${item.count / recent.length * 100}%` }} />
               ))}
             </div>
@@ -81,14 +86,14 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
                     <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-full ${item.color}`} />
                     {item.label}
                   </span>
-                  <span className="font-semibold">{formatNumber.format(item.count)}</span>
+                  <span className="font-semibold">{hasData ? formatNumber.format(item.count) : '—'}</span>
                 </li>
               ))}
             </ul>
           </figure>
           <figure className="border-t border-border p-5 sm:p-6 md:col-span-2">
             <figcaption className="font-semibold">{ar ? 'درجات المقابلات' : 'Interview scores'}</figcaption>
-            {average === null ? (
+            {!hasData || average === null ? (
               <p className="mt-2 text-sm text-muted-foreground">
                 {ar ? 'بتظهر الدرجة بعد أول مقابلة يتم تقييمها وحفظها.' : 'Scores appear after your first scored interview is saved.'}
               </p>
@@ -112,8 +117,7 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
               </>
             )}
           </figure>
-        </div>
-      )}
+      </div>
     </section>
   )
 }
