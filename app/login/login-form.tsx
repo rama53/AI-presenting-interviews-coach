@@ -8,9 +8,12 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAccount } from '@/app/account-provider'
 import { sessionApiEnabled, signIn } from '@/lib/practice-session-api'
 import taleeqLogo from '../(dashboard)/taleeq-logo.png'
+import taleeqVerses from '../(dashboard)/taleeq-verses.png'
 
 const inputClass = 'block min-h-[3.25rem] w-full rounded-xl border border-white/15 bg-[#101e31]/55 ps-11 pe-4 text-start text-base text-white transition-colors hover:border-white/30 focus-visible:border-sidebar-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-highlight'
 const inputIconClass = 'pointer-events-none absolute start-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-sidebar-muted'
+
+const calligraphyMask = { maskImage: `url("${taleeqVerses.src}")` }
 
 export function LoginForm() {
   const router = useRouter()
@@ -52,9 +55,20 @@ export function LoginForm() {
     <main
       lang={english ? 'en' : 'ar'}
       dir={english ? 'ltr' : 'rtl'}
-      className="login-background grid min-h-dvh place-items-center bg-sidebar px-4 py-10 sm:px-6 sm:py-12"
+      className="login-background relative isolate grid min-h-dvh place-items-center bg-sidebar px-4 py-10 sm:px-6 sm:py-12"
     >
-      <div className="flex w-full max-w-[28rem] flex-col items-center gap-8 sm:gap-10">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="login-dust login-dust-warm" />
+        <div className="login-dust login-dust-cool" />
+        <div className="login-script login-script-warm">
+          <span className="dashboard-verse" style={calligraphyMask} />
+        </div>
+        <div className="login-script login-script-cool">
+          <span className="dashboard-verse" style={calligraphyMask} />
+        </div>
+      </div>
+
+      <div className="relative z-10 flex w-full max-w-[28rem] flex-col items-center gap-8 sm:gap-10">
         <div className="login-logo">
           <Image
             src={taleeqLogo}
@@ -119,12 +133,102 @@ export function LoginForm() {
             linear-gradient(150deg, #192c46 0%, #111f33 76%);
         }
 
+        .login-dust,
+        .login-script {
+          position: absolute;
+        }
+
+        .login-dust {
+          aspect-ratio: 1;
+          width: clamp(16rem, 52vw, 48rem);
+        }
+
+        .login-dust-warm {
+          top: -23%;
+          right: -12%;
+          background:
+            radial-gradient(circle at 39% 62%, #ffbf9b6b 0 1px, transparent 3px),
+            radial-gradient(circle at 65% 49%, #ef96546b 0 2px, transparent 5px),
+            radial-gradient(circle at 55% 74%, #e388473f 0 3px, transparent 8px),
+            radial-gradient(circle at 72% 61%, #eda36950 0 1px, transparent 4px),
+            radial-gradient(circle at 59% 52%, #c979492b 0%, transparent 58%),
+            radial-gradient(circle at 35% 71%, #ce784b22 0%, transparent 32%);
+        }
+
+        .login-dust-cool {
+          bottom: -29%;
+          left: -13%;
+          background:
+            radial-gradient(circle at 61% 29%, #e8ad8756 0 1px, transparent 4px),
+            radial-gradient(circle at 40% 47%, #91b1de6b 0 2px, transparent 6px),
+            radial-gradient(circle at 73% 42%, #b0c7e33f 0 2px, transparent 6px),
+            radial-gradient(circle at 48% 42%, #709bcc36 0%, transparent 57%);
+        }
+
+        .login-script {
+          width: clamp(15rem, 36vw, 33rem);
+        }
+
+        .login-script-warm {
+          top: 21%;
+          right: -4rem;
+          color: #f4a67d;
+          opacity: 0.19;
+          rotate: -13deg;
+        }
+
+        .login-script-cool {
+          bottom: 17%;
+          left: -5rem;
+          color: #86a9d2;
+          opacity: 0.15;
+          rotate: -13deg;
+        }
+
+        .login-script > span {
+          background-color: currentColor;
+        }
+
+        @media (max-width: 640px) {
+          .login-script-warm {
+            top: 11%;
+            right: -8rem;
+            opacity: 0.13;
+          }
+
+          .login-script-cool {
+            bottom: 9%;
+            left: -9rem;
+            opacity: 0.11;
+          }
+        }
+
         .login-card {
           background: linear-gradient(180deg, rgba(73, 96, 126, 0.19), rgba(21, 37, 59, 0));
           box-shadow: inset 0 1px rgba(199, 217, 241, 0.15);
         }
 
         @media (prefers-reduced-motion: no-preference) {
+          .login-dust,
+          .login-script {
+            animation: login-background-drift 22s ease-in-out infinite alternate;
+          }
+
+          .login-dust-cool,
+          .login-script-warm {
+            animation-direction: alternate-reverse;
+          }
+
+          @keyframes login-background-drift {
+            from {
+              transform: translate(-0.6rem, 0.35rem);
+            }
+
+            to {
+              transform: translate(1.1rem, -0.8rem);
+            }
+          }
+
           .login-logo {
             animation: login-logo-rise 1400ms cubic-bezier(0.45, 0, 0.24, 1) both;
           }
