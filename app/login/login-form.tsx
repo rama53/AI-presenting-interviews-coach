@@ -1,12 +1,14 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAccount } from '@/app/account-provider'
 import { sessionApiEnabled, signIn } from '@/lib/practice-session-api'
+import taleeqLogo from '../(dashboard)/taleeq-logo.png'
 
-const inputClass = 'mt-2 block min-h-12 w-full rounded-xl border border-input bg-background px-3 text-start text-base focus-visible:outline-2 focus-visible:outline-offset-2'
+const inputClass = 'mt-2 block min-h-12 w-full rounded-xl border border-input bg-background px-4 text-start text-base transition-colors hover:border-primary-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 
 export function LoginForm() {
   const router = useRouter()
@@ -45,14 +47,27 @@ export function LoginForm() {
   }
 
   return (
-    <main lang={english ? 'en' : 'ar'} dir={english ? 'ltr' : 'rtl'} className="grid min-h-dvh place-items-center bg-background px-4 py-10">
-      <section aria-labelledby="login-title" className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card shadow-lg">
-        <header className="bg-sidebar px-6 py-7 text-sidebar-foreground sm:px-8">
-          <p className="mb-3 text-lg font-semibold text-sidebar-highlight">{english ? 'Taleeq' : 'طليق'}</p>
-          <h1 id="login-title" className="text-3xl font-semibold">{english ? 'Sign in' : 'تسجيل الدخول'}</h1>
-        </header>
+    <main
+      lang={english ? 'en' : 'ar'}
+      dir={english ? 'ltr' : 'rtl'}
+      className="grid min-h-dvh place-items-center bg-sidebar px-4 py-10 sm:px-6 sm:py-14"
+    >
+      <div className="flex w-full max-w-[26rem] flex-col items-center gap-7 sm:gap-9">
+        <Image
+          src={taleeqLogo}
+          alt={english ? 'Taleeq' : 'طليق'}
+          className="h-auto w-32 brightness-0 invert sm:w-40"
+          loading="eager"
+        />
 
-        <div className="p-6 sm:p-8">
+        <section
+          aria-labelledby="login-title"
+          className="w-full rounded-[2rem] border border-border bg-card px-6 py-7 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.65)] sm:px-9 sm:py-9"
+        >
+          <h1 id="login-title" className="mb-7 text-center text-[1.75rem] font-semibold leading-tight text-sidebar">
+            {english ? 'Sign in' : 'تسجيل الدخول'}
+          </h1>
+
           {account ? (
             <p className="text-sm">{english ? 'Signed in as' : 'الحساب الحالي'} <bdi>{account.email}</bdi></p>
           ) : sessionApiEnabled ? (
@@ -63,26 +78,26 @@ export function LoginForm() {
               </label>
               <label className="text-sm font-medium">
                 {english ? 'Password' : 'كلمة المرور'}
-                <input name="password" type="password" autoComplete="current-password" dir="ltr" required className={inputClass} />
+                <input name="password" type="password" autoComplete="current-password" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
               </label>
               {failed && (
                 <p role="alert" className="text-sm text-destructive">
                   {english ? 'Could not sign in. Check your account details and try again.' : 'تعذّر تسجيل الدخول. تحقّق من بيانات حسابك وحاول مرة أخرى.'}
                 </p>
               )}
-              <button type="submit" disabled={!ready || signingIn} className="min-h-12 rounded-xl bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60">
-                {signingIn ? (english ? 'Signing in…' : 'جارٍ تسجيل الدخول…') : (english ? 'Sign in' : 'دخول')}
+              <button type="submit" disabled={!ready || signingIn} className="mt-1 min-h-12 rounded-xl bg-sidebar px-4 font-semibold text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar disabled:opacity-60">
+                {signingIn ? (english ? 'Signing in…' : 'جارٍ تسجيل الدخول…') : (english ? 'Sign in' : 'تسجيل الدخول')}
               </button>
             </form>
           ) : (
             <p className="text-sm text-muted-foreground">{english ? 'Sign-in is unavailable in this environment.' : 'تسجيل الدخول غير متاح في هذه النسخة.'}</p>
           )}
 
-          <Link href="/" className="mt-6 inline-flex min-h-10 items-center rounded-md text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2">
+          <Link href="/" className="mt-6 flex min-h-10 items-center justify-center border-t border-border pt-3 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-sidebar focus-visible:outline-2 focus-visible:outline-offset-2">
             {english ? 'Back to the dashboard' : 'العودة إلى لوحة التحكم'}
           </Link>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   )
 }
