@@ -1,38 +1,80 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { recordingUrl, saveSessionArtifacts } from '@/lib/practice-session-api'
+import { recordingUrl, saveSessionReport, uploadSessionRecording } from '@/lib/practice-session-api'
 
-export function SaveSessionRecording({ token, sessionId, comments, recording, arabic }: {
+type SaveStatus = 'saving' | 'saved' | 'error'
+
+export function SaveSessionFeedback({ token, sessionId, comments, recording, arabic, onSaved }: {
   token: string
   sessionId: string
   comments: string[]
   recording?: Blob
   arabic: boolean
+  onSaved: () => void
 }) {
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [feedback, setFeedback] = useState<{ key: string; status: SaveStatus } | null>(null)
+  const [recordingStatus, setRecordingStatus] = useState<SaveStatus | null>(null)
+  const queued = useRef(Promise.resolve())
+  const scheduledComments = useRef<string | null>(null)
+  const uploadedRecording = useRef(false)
+  const commentsKey = JSON.stringify(comments)
 
-  async function save() {
-    setStatus('saving')
-    try {
-      await saveSessionArtifacts(token, sessionId, comments, recording)
-      setStatus('saved')
-    } catch {
-      setStatus('error')
-    }
+  // Serialize writes because the server replaces the entire report, including its recording flag.
+  function save(key: string, snapshot: string[], file?: Blob) {
+    if (!file) setFeedback({ key, status: 'saving' })
+    if (file) setRecordingStatus('saving')
+
+    queued.current = queued.current.then(async () => {
+      try {
+        if (file && !uploadedRecording.current) {
+          await uploadSessionRecording(token, sessionId, file)
+          uploadedRecording.current = true
+        }
+        await saveSessionReport(token, sessionId, { comments: snapshot, recording: uploadedRecording.current })
+        onSaved()
+        setFeedback(previous => previous?.key === key ? { key, status: 'saved' } : previous)
+        if (file) setRecordingStatus('saved')
+      } catch {
+        if (!file) setFeedback(previous => previous?.key === key ? { key, status: 'error' } : previous)
+        if (file) setRecordingStatus('error')
+      }
+    })
   }
 
+  useEffect(() => {
+    if (!comments.length || scheduledComments.current === commentsKey) return
+    scheduledComments.current = commentsKey
+    save(commentsKey, comments)
+  })
+
+  const status = feedback?.key === commentsKey ? feedback.status : null
+
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button type="button" onClick={save} disabled={status === 'saving' || status === 'saved'}>
-        {recording
-          ? (arabic ? 'حفظ التسجيل والملاحظات' : 'Save recording and feedback')
-          : (arabic ? 'حفظ الملاحظات في سجل الجلسات' : 'Save feedback to history')}
-      </Button>
-      <p role="status" className="text-sm">
-        {status === 'saving' && (arabic ? 'جارٍ الحفظ…' : 'Saving…')}
-        {status === 'saved' && (arabic ? 'تم الحفظ في الجلسات الأخيرة.' : 'Saved in Recent Sessions.')}
-        {status === 'error' && (arabic ? 'تعذّر الحفظ. جرّب مرة ثانية.' : 'Could not save. Try again.')}
-      </p>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      {comments.length > 0 && (
+        <p role="status" className="text-muted-foreground">
+          {status === 'saving' && (arabic ? 'جارٍ حفظ الملاحظات…' : 'Saving feedback…')}
+          {status === 'saved' && (arabic ? 'تم حفظ الملاحظات في سجل الجلسات.' : 'Feedback saved to session history.')}
+          {status === 'error' && (arabic ? 'تعذّر حفظ الملاحظات.' : 'Could not save feedback.')}
+        </p>
+      )}
+      {status === 'error' && (
+        <Button type="button" size="sm" variant="link" onClick={() => save(commentsKey, comments)}>
+          {arabic ? 'إعادة محاولة الحفظ' : 'Retry saving feedback'}
+        </Button>
+      )}
+      {recording && recordingStatus !== 'saved' && (
+        <Button type="button" size="sm" variant="outline" onClick={() => save(commentsKey, comments, recording)} disabled={recordingStatus === 'saving'}>
+          {recordingStatus === 'error' ? (arabic ? 'إعادة محاولة حفظ التسجيل' : 'Retry saving recording') : (arabic ? 'حفظ التسجيل' : 'Save recording')}
+        </Button>
+      )}
+      {recordingStatus && (
+        <p role="status" className="text-muted-foreground">
+          {recordingStatus === 'saving' && (arabic ? 'جارٍ حفظ التسجيل…' : 'Saving recording…')}
+          {recordingStatus === 'saved' && (arabic ? 'تم حفظ التسجيل.' : 'Recording saved.')}
+          {recordingStatus === 'error' && (arabic ? 'تعذّر حفظ التسجيل.' : 'Could not save the recording.')}
+        </p>
+      )}
     </div>
   )
 }
