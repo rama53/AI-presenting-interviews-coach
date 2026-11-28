@@ -12,17 +12,17 @@ const navigation = [
 
 export function DashboardSidebar({ text, children }: { text: DashboardCopy; children: ReactNode }) {
   return (
-    <aside className="bg-sidebar px-4 py-4 sm:px-8 text-sidebar-foreground lg:w-60 lg:shrink-0 lg:px-5 lg:py-8">
+    <aside className="border-b border-border bg-[#fffaf3] px-4 py-4 text-sidebar sm:px-8 lg:w-52 lg:shrink-0 lg:border-b-0 lg:border-e lg:px-5 lg:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 lg:sticky lg:top-8 lg:block">
         <a href="#dashboard" className="block w-fit" lang="ar">
-          <Image src={taleeqLogo} alt="طليق" className="h-auto w-24 brightness-0 invert lg:w-32" />
+          <Image src={taleeqLogo} alt="طليق" className="h-auto w-24 lg:w-28" />
         </a>
 
-        <div className="lg:mt-6">{children}</div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:mt-6 lg:flex-col lg:items-start">{children}</div>
 
         <nav aria-label={text.navigation} className="flex w-full flex-wrap gap-1 lg:mt-6 lg:flex-col">
           {navigation.map(({ label, href, icon: Icon }) => (
-            <a key={href} href={href} className="flex items-center gap-2 rounded-lg px-2.5 py-2.5 text-sm font-medium text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground">
+            <a key={href} href={href} className="flex items-center gap-2 rounded-lg px-2.5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-primary-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-ring">
               <Icon aria-hidden="true" className="size-4" />
               {text[label]}
             </a>
