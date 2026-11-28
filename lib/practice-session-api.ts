@@ -63,19 +63,35 @@ export async function loadRecentSessions(token: string, signal: AbortSignal) {
   return rows.map(row => ({ id: row.id, practice: row.practice_type, completedAt: row.ended_at, interviewScore: row.interview_score ?? undefined, report: row.report ?? undefined }))
 }
 
-export async function signIn(email: string, password: string): Promise<string> {
+export type SignedInAccount = { email: string; token: string; expiresAt: number }
+
+export async function signIn(email: string, password: string): Promise<SignedInAccount> {
   if (!supabaseUrl || !publishableKey) throw new Error('configuration')
 
-  const login = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+  const login = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { apikey: publishableKey, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
     signal: AbortSignal.timeout(15000),
   })
   if (!login.ok) throw new Error('login')
-  const { access_token: token } = await login.json()
-  if (typeof token !== 'string' || !token) throw new Error('login')
-  return token
+  const { access_token: token, expires_in: expiresIn } = await login.json()
+  if (typeof token !== 'string' || !token || typeof expiresIn !== 'number' ||
+      !Number.isFinite(expiresIn) || expiresIn <= 0) throw new Error('login')
+
+  return { email, token, expiresAt: Date.now() + expiresIn * 1000 }
+}
+
+export async function validateSignIn(token: string, signal: AbortSignal) {
+  if (!supabaseUrl || !publishableKey) return false
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+    headers: { apikey: publishableKey, Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    signal,
+  })
+  if (!response.ok) return false
+  const user = await response.json()
+  return typeof user?.id === 'string' && Boolean(user.id)
 }
 
 export async function savePracticeStart(token: string, practiceType: 'interview' | 'presentation'): Promise<string> {

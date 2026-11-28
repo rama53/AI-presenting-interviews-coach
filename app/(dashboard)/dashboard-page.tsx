@@ -1,16 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import { useAccount } from '@/app/account-provider'
 import { Button } from '@/components/ui/button'
-import { loadRecentSessions, sessionApiEnabled } from '@/lib/practice-session-api'
+import { loadRecentSessions, type SignedInAccount } from '@/lib/practice-session-api'
 import { ArrowRight, AudioLines, Lightbulb, MessageSquareText } from 'lucide-react'
 import { copy, type Language } from './copy'
 import { LanguageSelect } from './language-select'
 import { TrainingCharts } from './training-charts'
 import { DashboardSidebar } from './dashboard-sidebar'
-import { RecentSessions, readSessions, saveSession, type PracticeId, type SessionRecord } from './recent-sessions'
+import { RecentSessions, type PracticeId, type SessionRecord } from './recent-sessions'
 import { PracticeSession } from './practice-session'
 import taleeqVerses from './taleeq-verses.png'
 
@@ -21,26 +19,22 @@ const practiceOptions = [
 
 const languageKey = 'speakwell.language'
 
-export function DashboardPage() {
+export function DashboardPage({ account, onSignOut }: { account: SignedInAccount; onSignOut: () => void }) {
   const [selectedPractice, setSelectedPractice] = useState<(typeof practiceOptions)[number] | null>(null)
   const [language, setLanguage] = useState<Language>('ar')
   const text = copy[language]
   const [sessions, setSessions] = useState<SessionRecord[]>([])
-  const { account, setAccount } = useAccount()
   const [historyRevision, setHistoryRevision] = useState(0)
   const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('ready')
   const practiceTrigger = useRef<PracticeId | null>(null)
   const ar = language === 'ar'
-  const needsSignIn = sessionApiEnabled && !account
-  const historyMessage = sessionApiEnabled
-    ? needsSignIn ? (ar ? 'سجّلي الدخول لعرض جلساتك.' : 'Sign in to view your sessions.')
-      : historyStatus === 'loading' ? (ar ? 'جارٍ تحميل الجلسات…' : 'Loading sessions…')
-      : historyStatus === 'error' ? (ar ? 'تعذّر تحميل الجلسات. حاولي تحديث الصفحة.' : 'Could not load sessions. Refresh the page to try again.')
+  const historyMessage = historyStatus === 'loading'
+    ? (ar ? 'جارٍ تحميل الجلسات…' : 'Loading sessions…')
+    : historyStatus === 'error'
+      ? (ar ? 'تعذّر تحميل الجلسات. حاولي تحديث الصفحة.' : 'Could not load sessions. Refresh the page to try again.')
       : undefined
-    : undefined
 
   useEffect(() => {
-    if (!sessionApiEnabled) setSessions(readSessions())
     try {
       if (localStorage.getItem(languageKey) === 'en') setLanguage('en')
     } catch {
@@ -49,7 +43,7 @@ export function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (!account || selectedPractice) return
+    if (selectedPractice) return
     const controller = new AbortController()
     setHistoryStatus('loading')
     loadRecentSessions(account.token, AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
@@ -97,12 +91,10 @@ export function DashboardPage() {
           text={text}
           language={language}
           isInterview={selectedPractice.id === 'interview'}
-          accessToken={account?.token ?? null}
+          accessToken={account.token}
           onClose={() => setSelectedPractice(null)}
           onReportSaved={() => setHistoryRevision(revision => revision + 1)}
-          onComplete={(interviewType) => {
-            if (!sessionApiEnabled) setSessions(saveSession(selectedPractice.id, sessions, interviewType))
-          }}
+          onComplete={() => setHistoryRevision(revision => revision + 1)}
         />
       </main>
     )
@@ -110,12 +102,7 @@ export function DashboardPage() {
 
   return (
     <div id="dashboard" className="dashboard-waves min-h-screen bg-background text-foreground lg:flex">
-      <DashboardSidebar text={text} language={language}>
-        {languageSelect}
-        <Link href="/login" className="mt-2 inline-flex min-h-10 items-center rounded-lg bg-sidebar-highlight px-3 text-sm font-semibold text-sidebar-primary-foreground hover:bg-[#ffc09d]">
-          {account ? (ar ? 'حسابي' : 'My account') : (ar ? 'تسجيل الدخول' : 'Sign in')}
-        </Link>
-      </DashboardSidebar>
+      <DashboardSidebar text={text} language={language}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
         <header className="px-1 pt-5 pb-3 text-center sm:px-8 sm:pt-7 sm:pb-5">
@@ -139,12 +126,10 @@ export function DashboardPage() {
           <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
-        {sessionApiEnabled && account && (
-          <section aria-labelledby="account-title" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5">
-            <p id="account-title" className="text-sm">{ar ? 'الحساب الحالي' : 'Signed in as'} <bdi>{account.email}</bdi></p>
-            <Button variant="outline" onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
-          </section>
-        )}
+        <section aria-labelledby="account-title" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5">
+          <p id="account-title" className="text-sm">{ar ? 'الحساب الحالي' : 'Signed in as'} <bdi>{account.email}</bdi></p>
+          <Button variant="outline" onClick={onSignOut}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
+        </section>
 
         <section id="practice" aria-labelledby="practice-title" className="mt-7 scroll-mt-6">
           <div className="mb-3 flex items-center justify-between gap-3 px-1">
@@ -173,7 +158,6 @@ export function DashboardPage() {
                     <button
                       type="button"
                       id={`choose-${option.id}`}
-                      disabled={sessionApiEnabled && !account}
                       aria-labelledby={`${titleId} choose-${option.id}-label`}
                       aria-describedby={descriptionId}
                       onClick={() => {
@@ -190,11 +174,6 @@ export function DashboardPage() {
               )
             })}
           </ul>
-          {needsSignIn && (
-            <Link href="/login" className="mt-3 inline-block text-sm font-semibold text-primary underline underline-offset-4">
-              {ar ? 'سجّلي الدخول لبدء التدريب' : 'Sign in to start practicing'}
-            </Link>
-          )}
         </section>
 
         <TrainingCharts sessions={sessions} language={language} historyMessage={historyMessage} />
@@ -224,7 +203,6 @@ export function DashboardPage() {
           </div>
           <button
             type="button"
-            disabled={needsSignIn}
             onClick={() => {
               const recommendedId = sessions[0]?.practice === 'presentation'
                 ? 'interview'
@@ -235,14 +213,14 @@ export function DashboardPage() {
               practiceTrigger.current = option.id
               setSelectedPractice(option)
             }}
-            className="mt-4 inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-primary hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 sm:mt-0"
+            className="mt-4 inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-primary hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:mt-0"
           >
             {text.startPractice}
             <ArrowRight aria-hidden="true" className="size-4 rtl:rotate-180" />
           </button>
         </section>
 
-        <RecentSessions sessions={sessions} text={text} language={language} accessToken={account?.token}
+        <RecentSessions sessions={sessions} text={text} language={language} accessToken={account.token}
           historyMessage={historyMessage}
         />
       </main>

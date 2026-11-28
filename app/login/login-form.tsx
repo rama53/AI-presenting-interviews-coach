@@ -1,8 +1,7 @@
 'use client'
 
-import { ArrowRight, LockKeyhole, Mail } from 'lucide-react'
+import { LockKeyhole, Mail } from 'lucide-react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAccount } from '@/app/account-provider'
@@ -21,14 +20,12 @@ const edgeMarks = [shadda, stroke, curvedMark, dots, shadda, stroke] as const
 
 export function LoginForm() {
   const router = useRouter()
-  const { account, setAccount } = useAccount()
-  const [ready, setReady] = useState(false)
+  const { account, checkingAccount, setAccount } = useAccount()
   const [english, setEnglish] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    setReady(true)
     try {
       setEnglish(localStorage.getItem('speakwell.language') === 'en')
     } catch {
@@ -36,18 +33,20 @@ export function LoginForm() {
     }
   }, [])
 
+  useEffect(() => {
+    if (account) router.replace('/dashboard')
+  }, [account, router])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!sessionApiEnabled || signingIn || account) return
+    if (!sessionApiEnabled || checkingAccount || signingIn || account) return
 
     const fields = new FormData(event.currentTarget)
     const email = String(fields.get('email') ?? '').trim()
     setSigningIn(true)
     setFailed(false)
     try {
-      const token = await signIn(email, String(fields.get('password') ?? ''))
-      setAccount({ email, token })
-      router.replace('/')
+      setAccount(await signIn(email, String(fields.get('password') ?? '')))
     } catch {
       setFailed(true)
     } finally {
@@ -101,21 +100,21 @@ export function LoginForm() {
           </h1>
 
           {account ? (
-            <p className="text-sm">{english ? 'Signed in as' : 'الحساب الحالي'} <bdi>{account.email}</bdi></p>
+            <p role="status" className="text-sm">{english ? 'Opening your dashboard…' : 'جارٍ فتح لوحة التحكم…'}</p>
           ) : sessionApiEnabled ? (
             <form onSubmit={handleSubmit} className="grid gap-5" aria-busy={signingIn}>
               <label className="grid gap-2 text-sm font-semibold text-sidebar-foreground">
                 {english ? 'Email' : 'البريد الإلكتروني'}
                 <span className="relative block" dir="ltr">
                   <Mail aria-hidden="true" className={inputIconClass} />
-                  <input name="email" type="email" autoComplete="username" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
+                  <input name="email" type="email" autoComplete="username" dir="ltr" disabled={checkingAccount || signingIn} required className={inputClass} />
                 </span>
               </label>
               <label className="text-sm font-medium">
                 {english ? 'Password' : 'كلمة المرور'}
                 <span className="relative block" dir="ltr">
                   <LockKeyhole aria-hidden="true" className={inputIconClass} />
-                  <input name="password" type="password" autoComplete="current-password" dir="ltr" disabled={!ready || signingIn} required className={inputClass} />
+                  <input name="password" type="password" autoComplete="current-password" dir="ltr" disabled={checkingAccount || signingIn} required className={inputClass} />
                 </span>
               </label>
               {failed && (
@@ -123,18 +122,13 @@ export function LoginForm() {
                   {english ? 'Could not sign in. Check your account details and try again.' : 'تعذّر تسجيل الدخول. تحقّق من بيانات حسابك وحاول مرة أخرى.'}
                 </p>
               )}
-              <button type="submit" disabled={!ready || signingIn} className="mt-2 min-h-[3.25rem] rounded-xl bg-sidebar-highlight px-4 font-semibold text-[#301a13] transition-colors hover:bg-[#ffc09d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-highlight disabled:opacity-60">
+              <button type="submit" disabled={checkingAccount || signingIn} className="mt-2 min-h-[3.25rem] rounded-xl bg-sidebar-highlight px-4 font-semibold text-[#301a13] transition-colors hover:bg-[#ffc09d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-highlight disabled:opacity-60">
                 {signingIn ? (english ? 'Signing in…' : 'جارٍ تسجيل الدخول…') : (english ? 'Sign in' : 'تسجيل الدخول')}
               </button>
             </form>
           ) : (
             <p className="text-sm text-sidebar-muted">{english ? 'Sign-in is unavailable in this environment.' : 'تسجيل الدخول غير متاح في هذه النسخة.'}</p>
           )}
-
-          <Link href="/" className="mt-6 flex min-h-10 items-center justify-center gap-2 border-t border-white/10 pt-3 text-center text-sm font-medium text-sidebar-muted transition-colors hover:text-sidebar-highlight focus-visible:outline-2 focus-visible:outline-offset-2">
-            <ArrowRight aria-hidden="true" className="size-4 ltr:rotate-180" />
-            {english ? 'Back to the dashboard' : 'العودة إلى لوحة التحكم'}
-          </Link>
         </section>
       </div>
 
