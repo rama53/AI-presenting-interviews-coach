@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useAccount } from '@/app/account-provider'
+import { Button } from '@/components/ui/button'
 import { loadRecentSessions, sessionApiEnabled } from '@/lib/practice-session-api'
-import { ArrowRight, AudioLines, MessageSquareText } from 'lucide-react'
+import { ArrowRight, AudioLines, Lightbulb, MessageSquareText } from 'lucide-react'
 import { copy, type Language } from './copy'
 import { LanguageSelect } from './language-select'
 import { TrainingCharts } from './training-charts'
@@ -31,9 +32,9 @@ export function DashboardPage() {
   const ar = language === 'ar'
   const needsSignIn = sessionApiEnabled && !account
   const historyMessage = sessionApiEnabled
-    ? needsSignIn ? (ar ? 'سجّل الدخول لعرض جلساتك.' : 'Sign in to view your sessions.')
+    ? needsSignIn ? (ar ? 'سجّلي الدخول لعرض جلساتك.' : 'Sign in to view your sessions.')
       : historyStatus === 'loading' ? (ar ? 'جارٍ تحميل الجلسات…' : 'Loading sessions…')
-      : historyStatus === 'error' ? (ar ? 'تعذّر تحميل الجلسات.' : 'Could not load sessions.')
+      : historyStatus === 'error' ? (ar ? 'تعذّر تحميل الجلسات. حاولي تحديث الصفحة.' : 'Could not load sessions. Refresh the page to try again.')
       : undefined
     : undefined
 
@@ -106,56 +107,53 @@ export function DashboardPage() {
   }
 
   return (
-    <div id="dashboard" className="min-h-screen bg-[#faf7f1] text-foreground lg:flex">
-      <DashboardSidebar text={text}>
-        {languageSelect}
-        {sessionApiEnabled && (
-          account ? (
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <bdi className="max-w-full truncate text-xs text-muted-foreground">{account.email}</bdi>
-              <button
-                type="button"
-                onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}
-                className="min-h-9 text-sm font-semibold text-primary hover:underline"
-              >
-                {ar ? 'تسجيل الخروج' : 'Sign out'}
-              </button>
-            </div>
-          ) : (
-            <Link href="/login" className="inline-flex min-h-10 items-center rounded-lg border border-primary-border bg-card px-3 text-sm font-semibold text-primary hover:bg-primary-soft">
-              {ar ? 'تسجيل الدخول' : 'Sign in'}
-            </Link>
-          )
-        )}
-      </DashboardSidebar>
+    <div id="dashboard" className="dashboard-waves min-h-screen bg-background text-foreground lg:flex">
+      <DashboardSidebar text={text}>{languageSelect}</DashboardSidebar>
 
       <main className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-8 sm:py-9 lg:py-12">
-        <header className="relative isolate overflow-hidden rounded-[1.75rem] border border-[#ead6be] bg-[#f7e8d7] px-5 py-9 sm:px-10 sm:py-12">
-          <div aria-hidden="true" className="pointer-events-none absolute -end-20 -top-32 -z-10 size-96 rounded-full border border-[#dc9b69]/35 bg-[#f7d4b5]/60 shadow-[0_0_0_2rem_#fff8ef70,0_0_0_4rem_#fff8ef40]" />
-          {ar ? (
-            <h1 className="dashboard-calligraphy max-w-[44rem]" aria-label={text.title.map((line) => line.join(' ')).join('، ')}>
+        <header className="px-1 pt-5 pb-3 text-center sm:px-8 sm:pt-7 sm:pb-5">
+          {language === 'ar' ? (
+            <h1 className="dashboard-calligraphy mx-auto max-w-3xl" aria-label={text.title.map((line) => line.join(' ')).join('، ')}>
               {text.title.map((line) => (
                 <span
                   key={line[0]}
                   aria-hidden="true"
-                  className="dashboard-verse home-verse bg-sidebar"
+                  className="dashboard-verse bg-sidebar"
                   style={{ maskImage: `url("${taleeqVerses.src}")` }}
                 />
               ))}
             </h1>
           ) : (
-            <h1 className="max-w-2xl text-3xl font-semibold leading-tight text-sidebar sm:text-5xl">
+            <h1 className="text-3xl font-semibold leading-tight text-sidebar sm:text-5xl">
               {text.title.map((line) => <span key={line[0]} className="block">{line.join(' ')}</span>)}
             </h1>
           )}
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-[#3f4d52]">
-            {ar ? 'تدرّب على مقابلتك أو عرضك القادم، وارجع لجلساتك لتتابع تمرينك.' : 'Rehearse your next interview or presentation, then revisit your practice sessions.'}
-          </p>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-base">{text.intro}</p>
+          <p className="mx-auto mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">{text.demoNotice}</p>
         </header>
 
-        <section id="practice" aria-labelledby="practice-title" className="mt-8 scroll-mt-6">
-          <h2 id="practice-title" className="mb-4 text-xl font-semibold sm:text-2xl">{text.options}</h2>
-          <ul className="grid gap-4 sm:grid-cols-2">
+        {sessionApiEnabled && (
+          <section aria-labelledby="account-title" className="mt-5 rounded-2xl border border-border bg-card p-5">
+            <h2 id="account-title" className="mb-3 text-lg font-semibold">{ar ? 'تسجيل الدخول' : 'Sign in'}</h2>
+            {account ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm">{ar ? 'الحساب الحالي' : 'Signed in as'} <bdi>{account.email}</bdi></p>
+                <Button variant="outline" onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
+              </div>
+            ) : (
+              <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2">
+                {ar ? 'انتقلي إلى صفحة تسجيل الدخول' : 'Go to sign in'}
+              </Link>
+            )}
+          </section>
+        )}
+
+        <section id="practice" aria-labelledby="practice-title" className="mt-7 scroll-mt-6">
+          <div className="mb-3 flex items-center justify-between gap-3 px-1">
+            <h2 id="practice-title" className="text-lg font-semibold sm:text-xl">{text.options}</h2>
+            <span className="hidden text-xs text-muted-foreground sm:inline">{text.practice}</span>
+          </div>
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {practiceOptions.map((option) => {
               const Icon = option.icon
               const mode = text.modes[option.id]
@@ -164,9 +162,9 @@ export function DashboardPage() {
 
               return (
                 <li key={option.id} className="min-w-0">
-                  <article className={`flex h-full flex-col rounded-2xl border p-5 sm:p-6 ${option.id === 'presentation' ? 'border-[#efd1b9] bg-[#fff3e8]' : 'border-[#d1dfd7] bg-[#eef5ef]'}`}>
+                  <article className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary-border sm:p-6">
                     <div className="flex items-start gap-4">
-                      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-sidebar">
+                      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary-soft text-primary">
                         <Icon aria-hidden="true" className="size-5" />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -177,14 +175,14 @@ export function DashboardPage() {
                     <button
                       type="button"
                       id={`choose-${option.id}`}
-                      disabled={needsSignIn}
+                      disabled={sessionApiEnabled && !account}
                       aria-labelledby={`${titleId} choose-${option.id}-label`}
                       aria-describedby={descriptionId}
                       onClick={() => {
                         practiceTrigger.current = option.id
                         setSelectedPractice(option)
                       }}
-                      className="mt-5 inline-flex min-h-11 w-fit items-center gap-2 rounded-lg border border-sidebar/20 bg-white/65 px-4 py-2.5 text-sm font-semibold text-sidebar transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
+                      className="mt-5 inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       <span id={`choose-${option.id}-label`}>{text.startPractice}</span>
                       <ArrowRight aria-hidden="true" className="size-4 rtl:rotate-180" />
@@ -194,11 +192,49 @@ export function DashboardPage() {
               )
             })}
           </ul>
-          {needsSignIn && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              <Link href="/login" className="font-semibold text-primary underline underline-offset-4">{ar ? 'سجّل الدخول لبدء التدريب' : 'Sign in to start practicing'}</Link>
-            </p>
-          )}
+        </section>
+
+        <section aria-labelledby="recommendation-title" className="mt-5 rounded-2xl border border-primary-border bg-primary-soft/70 p-4 sm:flex sm:items-center sm:justify-between sm:gap-5 sm:p-5">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-card text-primary">
+              <Lightbulb aria-hidden="true" className="size-5" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold text-primary">{text.recommendation}</p>
+              <h2 id="recommendation-title" className="mt-1 font-semibold">
+                {sessions[0]?.practice === 'presentation'
+                  ? text.recommendationPresentationTitle
+                  : sessions[0]?.practice === 'interview'
+                    ? text.recommendationInterviewTitle
+                    : text.recommendationNewTitle}
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {sessions[0]?.practice === 'presentation'
+                  ? text.recommendationPresentationDescription
+                  : sessions[0]?.practice === 'interview'
+                    ? text.recommendationInterviewDescription
+                    : text.recommendationNewDescription}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={needsSignIn}
+            onClick={() => {
+              const recommendedId = sessions[0]?.practice === 'presentation'
+                ? 'interview'
+                : sessions[0]?.practice === 'interview'
+                  ? 'presentation'
+                  : 'interview'
+              const option = practiceOptions.find((item) => item.id === recommendedId)!
+              practiceTrigger.current = option.id
+              setSelectedPractice(option)
+            }}
+            className="mt-4 inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-primary hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 sm:mt-0"
+          >
+            {text.startPractice}
+            <ArrowRight aria-hidden="true" className="size-4 rtl:rotate-180" />
+          </button>
         </section>
 
         <TrainingCharts sessions={sessions} language={language} historyMessage={historyMessage} />
@@ -206,23 +242,6 @@ export function DashboardPage() {
         <RecentSessions sessions={sessions} text={text} language={language} accessToken={account?.token}
           historyMessage={historyMessage}
         />
-
-        <style jsx>{`
-          @media (prefers-reduced-motion: no-preference) {
-            .home-verse {
-              animation: home-calligraphy-enter 850ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
-            }
-
-            .home-verse + .home-verse {
-              animation-delay: 180ms;
-            }
-
-            @keyframes home-calligraphy-enter {
-              from { opacity: 0; transform: translateY(0.55rem); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          }
-        `}</style>
       </main>
     </div>
   )
