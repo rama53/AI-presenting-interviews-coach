@@ -46,15 +46,15 @@ type Session =
   | { phase: 'finished' }
 
 const answerVerdicts = {
-  correct: { ar: 'إجابة صحيحة', en: 'Correct' },
-  incorrect: { ar: 'إجابة غير صحيحة', en: 'Incorrect' },
-  complete: { ar: 'إجابة مكتملة', en: 'Complete' },
-  partial: { ar: 'إجابة ناقصة', en: 'Incomplete' },
-  off_topic: { ar: 'الإجابة خارج السؤال', en: 'Off-topic' },
-  uncertain: { ar: 'لا يمكن الحكم على الإجابة', en: 'Cannot assess' },
+  correct: { ar: 'إجابة صحيحة', en: 'Correct', color: '#28836B' },
+  incorrect: { ar: 'إجابة غير صحيحة', en: 'Incorrect', color: '#A64E55' },
+  complete: { ar: 'إجابة مكتملة', en: 'Complete', color: '#4077A4' },
+  partial: { ar: 'إجابة ناقصة', en: 'Incomplete', color: '#D58B34' },
+  off_topic: { ar: 'الإجابة خارج السؤال', en: 'Off-topic', color: '#8565A6' },
+  uncertain: { ar: 'لا يمكن الحكم على الإجابة', en: 'Cannot assess', color: '#687788' },
 }
 
-export function PracticeSession({ practice, text, language, isInterview, accessToken, onClose, onComplete, onReportSaved }: {
+export function PracticeSession({ practice, text, language, isInterview, accessToken, onClose, onComplete, onReportSaved, onViewAnalysis }: {
   practice: Practice
   text: DashboardCopy
   language: Language
@@ -62,6 +62,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   accessToken: string | null
   onClose: () => void
   onReportSaved: () => void
+  onViewAnalysis: () => void
   onComplete: (interviewType?: InterviewType) => void
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
@@ -717,6 +718,14 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
         const savedComments = (aiFeedback
           ? [aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.answers.flatMap(answer => [answer.feedback, answer.improvement]), ...aiFeedback.action_plan]
           : [...notes, ...presentationComments]).filter(Boolean).slice(0, 30).map(comment => comment.slice(0, 2000))
+        const verdictBreakdown = (Object.keys(answerVerdicts) as (keyof typeof answerVerdicts)[])
+          .map(verdict => ({
+            verdict,
+            count: aiFeedback?.answers.filter(answer => answer.verdict === verdict).length ?? 0,
+          }))
+          .filter(({ count }) => count > 0)
+        const reviewedAnswerCount = verdictBreakdown.reduce((total, { count }) => total + count, 0)
+        const formatAnswerCount = new Intl.NumberFormat(language)
         const roles = ar ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
         const colors = ['bg-[#FCD4A5] text-[#85420F]', 'bg-[#DCD0FA] text-[#50348A]', 'bg-[#BCE8D2] text-[#175D43]']
         const stats = [{ label: ar ? 'مدة التدريب التقريبية' : 'Approximate duration', value: Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0') }, { label: isInterview ? (ar ? 'الإجابات' : 'Answers') : (ar ? 'ظهور الوجه' : 'Face visibility'), value: isInterview ? turns.length : cameraSamples.current.total >= 8 ? Math.round(100 * cameraSamples.current.visible / cameraSamples.current.total) + '%' : '—' }, { label: ar ? 'عدد الكلمات' : 'Words', value: words }]
@@ -739,9 +748,55 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             </div>
           )}
           {isInterview && aiFeedback && <section className="space-y-4 rounded-2xl bg-white p-5 text-[#142B49]">
-            <div className="flex items-center gap-5"><div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-8 border-[#29966B] text-3xl font-bold">{aiFeedback.score}<span className="text-xs">/100</span></div><div><h2 className="text-xl font-bold">{ar ? 'تقييم المقابلة الذكي' : 'AI interview review'}</h2><p className="mt-2 text-sm">{aiFeedback.summary}</p></div></div>
+            <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap sm:gap-5">
+              <div
+                className="grid size-24 shrink-0 place-items-center rounded-full p-2"
+                style={{ background: `conic-gradient(#29966B ${aiFeedback.score}%, #E7EEF1 0)` }}
+              >
+                <meter className="sr-only" min={0} max={100} value={aiFeedback.score} aria-label={ar ? 'درجة المقابلة من ١٠٠' : 'Interview score out of 100'} />
+                <div aria-hidden="true" className="grid size-full place-items-center rounded-full bg-white">
+                  <bdi dir="ltr" className="inline-flex items-baseline text-3xl font-bold tabular-nums">
+                    {aiFeedback.score}<span className="text-xs">/100</span>
+                  </bdi>
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 basis-44">
+                <h2 className="text-xl font-bold">{ar ? 'تقييم المقابلة الذكي' : 'AI interview review'}</h2>
+                <p className="mt-2 text-sm">{aiFeedback.summary}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={onViewAnalysis} className="shrink-0 sm:self-start">
+                {ar ? 'شوفي تطوّر درجاتك' : 'View score progress'}
+              </Button>
+            </div>
             <p className="text-xs text-slate-600">{ar ? 'تقدير تدريبي لجودة الإجابات، وليس قرار توظيف.' : 'Practice estimate of answer quality, not a hiring decision.'}</p>
             {aiFeedback.interviewer_scores.map((score, i) => <div key={i}><div className="flex justify-between text-sm"><span>{roles[i]}</span><strong>{score === null ? '—' : score + '%'}</strong></div><div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-[#315B82]" style={{ width: (score ?? 0) + '%' }} /></div></div>)}
+            {reviewedAnswerCount > 0 && (
+              <figure className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <figcaption className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-bold">{ar ? 'توزيع تقييم الإجابات' : 'Answer assessment breakdown'}</span>
+                  <span className="text-xs text-slate-600">
+                    {ar ? 'عدد الإجابات المُقيّمة' : 'Answers assessed'} · {formatAnswerCount.format(reviewedAnswerCount)}
+                  </span>
+                </figcaption>
+                <div aria-hidden="true" className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-200">
+                  {verdictBreakdown.map(({ verdict, count }) => (
+                    <span
+                      key={verdict}
+                      style={{ flexGrow: count, flexBasis: 0, backgroundColor: answerVerdicts[verdict].color }}
+                    />
+                  ))}
+                </div>
+                <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-700">
+                  {verdictBreakdown.map(({ verdict, count }) => (
+                    <li key={verdict} className="flex items-center gap-2">
+                      <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: answerVerdicts[verdict].color }} />
+                      {answerVerdicts[verdict][language]}
+                      <bdi className="font-semibold tabular-nums">{formatAnswerCount.format(count)}</bdi>
+                    </li>
+                  ))}
+                </ul>
+              </figure>
+            )}
             <div className="grid gap-3 md:grid-cols-2">{[{ title: ar ? 'نقاط القوة' : 'Strengths', items: aiFeedback.strengths, color: '#CDEBDD' }, { title: ar ? 'فرص التحسين' : 'Improvements', items: aiFeedback.improvements, color: '#FCD4A5' }].map(group => <div key={group.title} className="rounded-xl p-4" style={{ background: group.color }}><h3 className="font-bold">{group.title}</h3><ul className="mt-2 list-disc space-y-2 ps-5 text-sm">{group.items.map((item, i) => <li key={i}>{item}</li>)}</ul></div>)}</div>
             <div className="rounded-xl bg-[#DCD0FA] p-4"><h3 className="font-bold">{ar ? 'خطة تطوير مخصصة' : 'Personal action plan'}</h3><ol className="mt-2 list-decimal space-y-2 ps-5 text-sm">{aiFeedback.action_plan.map((item, i) => <li key={i}>{item}</li>)}</ol></div>
           </section>}

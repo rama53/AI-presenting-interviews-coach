@@ -27,6 +27,7 @@ export function DashboardPage({ account, onSignOut }: { account: SignedInAccount
   const [historyRevision, setHistoryRevision] = useState(0)
   const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('ready')
   const practiceTrigger = useRef<PracticeId | null>(null)
+  const openAnalysis = useRef(false)
   const ar = language === 'ar'
   const historyMessage = historyStatus === 'loading'
     ? (ar ? 'جارٍ تحميل الجلسات…' : 'Loading sessions…')
@@ -76,7 +77,14 @@ export function DashboardPage({ account, onSignOut }: { account: SignedInAccount
   const languageSelect = <LanguageSelect label={text.language} language={language} onChange={changeLanguage} />
 
   useEffect(() => {
-    if (selectedPractice === null && practiceTrigger.current) {
+    if (selectedPractice !== null) return
+    if (openAnalysis.current) {
+      openAnalysis.current = false
+      practiceTrigger.current = null
+      document.getElementById('interview-progress-title')?.focus()
+      return
+    }
+    if (practiceTrigger.current) {
       document.getElementById(`choose-${practiceTrigger.current}`)?.focus()
       practiceTrigger.current = null
     }
@@ -93,6 +101,10 @@ export function DashboardPage({ account, onSignOut }: { account: SignedInAccount
           isInterview={selectedPractice.id === 'interview'}
           accessToken={account.token}
           onClose={() => setSelectedPractice(null)}
+          onViewAnalysis={() => {
+            openAnalysis.current = true
+            setSelectedPractice(null)
+          }}
           onReportSaved={() => setHistoryRevision(revision => revision + 1)}
           onComplete={() => setHistoryRevision(revision => revision + 1)}
         />
