@@ -29,22 +29,23 @@ export async function recordingUrl(token: string, sessionId: string) {
   return storage.url + signedURL
 }
 
-export async function saveSessionArtifacts(token: string, sessionId: string, comments: string[], recording?: Blob) {
+export async function uploadSessionRecording(token: string, sessionId: string, recording: Blob) {
+  const storage = recordingStorage(token, sessionId)
+  const upload = await fetch(`${storage.url}/object/${storage.path}`, {
+    method: 'POST',
+    headers: { ...storage.headers, 'Content-Type': recording.type.split(';')[0] },
+    body: recording,
+    signal: AbortSignal.timeout(120000),
+  })
+  if (!upload.ok) await recordingUrl(token, sessionId)
+}
+
+export async function saveSessionReport(token: string, sessionId: string, report: SavedPracticeReport) {
   if (!apiUrl) throw new Error('configuration')
-  if (recording) {
-    const storage = recordingStorage(token, sessionId)
-    const upload = await fetch(`${storage.url}/object/${storage.path}`, {
-      method: 'POST',
-      headers: { ...storage.headers, 'Content-Type': recording.type.split(';')[0] },
-      body: recording,
-      signal: AbortSignal.timeout(120000),
-    })
-    if (!upload.ok) await recordingUrl(token, sessionId)
-  }
   const result = await fetch(`${apiUrl}/sessions/${encodeURIComponent(sessionId)}/report`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comments, recording: Boolean(recording) }),
+    body: JSON.stringify(report),
     signal: AbortSignal.timeout(25000),
   })
   if (!result.ok) throw new Error('report')

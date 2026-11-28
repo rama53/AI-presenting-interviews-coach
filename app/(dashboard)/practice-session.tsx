@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { savePracticeEnd, savePracticeStart } from '@/lib/practice-session-api'
-import { SaveSessionRecording } from './session-recording'
+import { SaveSessionFeedback } from './session-recording'
 import { usePracticeRecording } from './use-practice-recording'
 import { createPortal } from 'react-dom'
 import { Pause, Play, Maximize, Minimize, X, Square, Mic, MicOff, Video, VideoOff, Presentation, Volume2, VolumeX } from 'lucide-react'
@@ -54,13 +54,14 @@ const answerVerdicts = {
   uncertain: { ar: 'لا يمكن الحكم على الإجابة', en: 'Cannot assess' },
 }
 
-export function PracticeSession({ practice, text, language, isInterview, accessToken, onClose, onComplete }: {
+export function PracticeSession({ practice, text, language, isInterview, accessToken, onClose, onComplete, onReportSaved }: {
   practice: Practice
   text: DashboardCopy
   language: Language
   isInterview: boolean
   accessToken: string | null
   onClose: () => void
+  onReportSaved: () => void
   onComplete: (interviewType?: InterviewType) => void
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
@@ -766,17 +767,19 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             </details>
           ))}</>}
           <div className="rounded-xl bg-[#CDEBDD] p-5"><h2 className="text-lg font-bold">{ar ? 'خطة التدريب القادمة' : 'Next practice plan'}</h2>{notes.length ? <ol className="mt-3 list-decimal space-y-2 ps-5 text-sm">{notes.map(note => <li key={note}>{note}</li>)}</ol> : <p className="mt-2 text-sm">{ar ? 'سجّل إجابة أو عرضًا للحصول على ملاحظات مخصصة.' : 'Record an answer or presentation for tailored feedback.'}</p>}</div>
-          <details className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold">{ar ? 'النص الكامل والمراجعة' : 'Full transcript and revision'}</summary><PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? { ...speech, transcript: interviewReportTranscript, setTranscript: value => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value) } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} /></details>
-          {accessToken && remoteSessionId.current && (recordingFile || savedComments.length > 0)
-            && recordingState !== 'stopping' && aiFeedbackStatus !== 'loading' && !speech.busy && (
-              <SaveSessionRecording key={remoteSessionId.current + (presentationResult ? "-presentation-review" : "")} token={accessToken}
-                sessionId={remoteSessionId.current} arabic={ar} recording={recordingFile} comments={savedComments} />
-          )}
-          <Button type="button" variant="outline" onClick={() => {
-            const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.verdict, r.feedback, r.improvement].filter(Boolean).join('\n')), transcript, ...notes, ...(presentationResult?.score != null ? [String(presentationResult.score) + '/100'] : []), ...(audienceFeedback && audienceAnswer ? [audienceAnswer.question, audienceAnswer.answer] : []), ...presentationComments, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan] : [])].join('\n\n')
-            const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
-            const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-          }}>{ar ? 'حفظ التقرير' : 'Download report'}</Button>
+          <details className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold">{ar ? 'عرض نص التدريب' : 'View practice transcript'}</summary><PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? { ...speech, transcript: interviewReportTranscript, setTranscript: value => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value) } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} /></details>
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+            {accessToken && remoteSessionId.current && !speech.busy && (
+              <SaveSessionFeedback key={remoteSessionId.current} token={accessToken}
+                sessionId={remoteSessionId.current} arabic={ar} recording={recordingFile}
+                comments={savedComments} onSaved={onReportSaved} />
+            )}
+            <button type="button" className="ms-auto text-sm font-medium text-[#315B82] underline underline-offset-4 hover:text-[#142B49] focus-visible:outline-2 focus-visible:outline-offset-4" onClick={() => {
+              const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.verdict, r.feedback, r.improvement].filter(Boolean).join('\n')), transcript, ...notes, ...(presentationResult?.score != null ? [String(presentationResult.score) + '/100'] : []), ...(audienceFeedback && audienceAnswer ? [audienceAnswer.question, audienceAnswer.answer] : []), ...presentationComments, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan] : [])].join('\n\n')
+              const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
+              const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+            }}>{ar ? 'تنزيل التقرير' : 'Download report'}</button>
+          </div>
         </div>
       })()}
       {session.phase === 'ready' && isInterview && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{language === 'ar' ? 'أخبرنا عن الوظيفة التي تستهدفها لنخصص أسئلة المقابلة وفقًا لها.' : 'Tell us about your target role so we can tailor your interview questions.'}</p>}
