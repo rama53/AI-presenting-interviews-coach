@@ -6,12 +6,11 @@ import { resetBodyTracking, sampleBodyFrame, sampleCameraFrame, type CameraSampl
 import type { VoiceSamples } from '@/lib/presentation-feedback'
 import type { Language } from './copy'
 
-export function CameraFeedback({ preview, samples, language, paused, analyzeBody, voice }: {
+export function CameraFeedback({ preview, samples, language, paused, voice }: {
   preview: RefObject<HTMLVideoElement | null>
   samples: CameraSamples
   language: Language
   paused: boolean
-  analyzeBody: boolean
   voice?: VoiceSamples
 }) {
   const ar = language === 'ar'
@@ -35,15 +34,13 @@ export function CameraFeedback({ preview, samples, language, paused, analyzeBody
         else {
           landmarker.current = detector
           setStatus('ready')
-          if (analyzeBody) {
-            const pose = await PoseLandmarker.createFromOptions(files, {
-              baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task' },
-              runningMode: 'VIDEO',
-              numPoses: 1,
-            }).catch(() => null)
-            if (closed) pose?.close()
-            else poseLandmarker.current = pose
-          }
+          const pose = await PoseLandmarker.createFromOptions(files, {
+            baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task' },
+            runningMode: 'VIDEO',
+            numPoses: 1,
+          }).catch(() => null)
+          if (closed) pose?.close()
+          else poseLandmarker.current = pose
         }
       } catch {
         if (!closed) setStatus('unavailable')
@@ -57,7 +54,7 @@ export function CameraFeedback({ preview, samples, language, paused, analyzeBody
       poseLandmarker.current?.close()
       poseLandmarker.current = null
     }
-  }, [analyzeBody])
+  }, [])
 
   useEffect(() => {
     if (status !== 'ready' || paused) return
@@ -97,7 +94,7 @@ export function CameraFeedback({ preview, samples, language, paused, analyzeBody
     <p role="status" className="absolute end-4 bottom-28 rounded-lg bg-black/85 px-3 py-2 text-sm">
       {status === 'loading'
         ? (ar ? 'جاري تجهيز تحليل الكاميرا…' : 'Loading camera feedback…')
-        : (ar ? 'تعذّر تشغيل تحليل الكاميرا. يمكنك متابعة العرض.' : 'Camera feedback is unavailable. You can keep presenting.')}
+        : (ar ? 'تعذّر تشغيل تحليل الكاميرا. يمكنك متابعة التدريب.' : 'Camera feedback is unavailable. You can continue practicing.')}
     </p>
   )
 }
