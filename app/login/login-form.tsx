@@ -9,8 +9,8 @@ import { useAccount } from '@/app/account-provider'
 import { sessionApiEnabled, signIn } from '@/lib/practice-session-api'
 import taleeqLogo from '../(dashboard)/taleeq-logo.png'
 
-const inputClass = 'block min-h-[3.25rem] w-full rounded-xl border border-input bg-white ps-11 pe-4 text-start text-base text-sidebar shadow-sm transition-colors hover:border-primary-border focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-const inputIconClass = 'pointer-events-none absolute start-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-muted-foreground'
+const inputClass = 'block min-h-[3.25rem] w-full rounded-xl border border-white/15 bg-[#101e31]/55 ps-11 pe-4 text-start text-base text-white transition-colors hover:border-white/30 focus-visible:border-sidebar-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-highlight'
+const inputIconClass = 'pointer-events-none absolute start-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-sidebar-muted'
 
 export function LoginForm() {
   const router = useRouter()
@@ -59,17 +59,17 @@ export function LoginForm() {
           <Image
             src={taleeqLogo}
             alt={english ? 'Taleeq' : 'طليق'}
-            className="h-auto w-48 scale-x-105 brightness-0 invert sm:w-56"
+            className="h-auto w-48 scale-x-[1.22] brightness-0 invert sm:w-56"
             loading="eager"
           />
         </div>
 
         <section
           aria-labelledby="login-title"
-          className="login-card relative w-full rounded-[1.75rem] border border-white/70 bg-card px-6 pb-6 pt-8 shadow-[0_32px_76px_-32px_rgba(4,10,20,0.9)] sm:px-10 sm:pb-8 sm:pt-10"
+          className="login-card relative w-full rounded-[1.75rem] px-6 pb-6 pt-8 text-sidebar-foreground sm:px-10 sm:pb-8 sm:pt-10"
         >
-          <div aria-hidden="true" className="mb-4 h-1 w-9 rounded-full bg-sidebar-highlight" />
-          <h1 id="login-title" className="mb-7 text-[1.875rem] font-semibold leading-tight text-sidebar">
+          <div aria-hidden="true" className="mb-4 h-0.5 w-7 rounded-full bg-sidebar-highlight/80" />
+          <h1 id="login-title" className="mb-7 text-[1.875rem] font-semibold leading-tight text-white">
             {english ? 'Sign in' : 'تسجيل الدخول'}
           </h1>
 
@@ -77,7 +77,7 @@ export function LoginForm() {
             <p className="text-sm">{english ? 'Signed in as' : 'الحساب الحالي'} <bdi>{account.email}</bdi></p>
           ) : sessionApiEnabled ? (
             <form onSubmit={handleSubmit} className="grid gap-5" aria-busy={signingIn}>
-              <label className="grid gap-2 text-sm font-semibold text-sidebar">
+              <label className="grid gap-2 text-sm font-semibold text-sidebar-foreground">
                 {english ? 'Email' : 'البريد الإلكتروني'}
                 <span className="relative block" dir="ltr">
                   <Mail aria-hidden="true" className={inputIconClass} />
@@ -92,19 +92,19 @@ export function LoginForm() {
                 </span>
               </label>
               {failed && (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-sm text-rose-200">
                   {english ? 'Could not sign in. Check your account details and try again.' : 'تعذّر تسجيل الدخول. تحقّق من بيانات حسابك وحاول مرة أخرى.'}
                 </p>
               )}
-              <button type="submit" disabled={!ready || signingIn} className="mt-2 min-h-[3.25rem] rounded-xl bg-primary px-4 font-semibold text-primary-foreground shadow-[0_6px_16px_-8px_var(--primary)] transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60">
+              <button type="submit" disabled={!ready || signingIn} className="mt-2 min-h-[3.25rem] rounded-xl bg-sidebar-highlight px-4 font-semibold text-[#301a13] transition-colors hover:bg-[#ffc09d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-highlight disabled:opacity-60">
                 {signingIn ? (english ? 'Signing in…' : 'جارٍ تسجيل الدخول…') : (english ? 'Sign in' : 'تسجيل الدخول')}
               </button>
             </form>
           ) : (
-            <p className="text-sm text-muted-foreground">{english ? 'Sign-in is unavailable in this environment.' : 'تسجيل الدخول غير متاح في هذه النسخة.'}</p>
+            <p className="text-sm text-sidebar-muted">{english ? 'Sign-in is unavailable in this environment.' : 'تسجيل الدخول غير متاح في هذه النسخة.'}</p>
           )}
 
-          <Link href="/" className="mt-6 flex min-h-10 items-center justify-center gap-2 border-t border-border pt-3 text-center text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2">
+          <Link href="/" className="mt-6 flex min-h-10 items-center justify-center gap-2 border-t border-white/10 pt-3 text-center text-sm font-medium text-sidebar-muted transition-colors hover:text-sidebar-highlight focus-visible:outline-2 focus-visible:outline-offset-2">
             <ArrowRight aria-hidden="true" className="size-4 ltr:rotate-180" />
             {english ? 'Back to the dashboard' : 'العودة إلى لوحة التحكم'}
           </Link>
@@ -117,6 +117,11 @@ export function LoginForm() {
             radial-gradient(ellipse at 87% 14%, rgba(203, 105, 61, 0.21), transparent 41%),
             radial-gradient(ellipse at 15% 80%, rgba(57, 104, 150, 0.28), transparent 48%),
             linear-gradient(150deg, #192c46 0%, #111f33 76%);
+        }
+
+        .login-card {
+          background: linear-gradient(180deg, rgba(73, 96, 126, 0.19), rgba(21, 37, 59, 0));
+          box-shadow: inset 0 1px rgba(199, 217, 241, 0.15);
         }
 
         @media (prefers-reduced-motion: no-preference) {
