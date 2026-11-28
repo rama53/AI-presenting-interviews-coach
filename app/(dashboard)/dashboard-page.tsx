@@ -27,6 +27,7 @@ export function DashboardPage() {
   const text = copy[language]
   const [sessions, setSessions] = useState<SessionRecord[]>([])
   const { account, setAccount } = useAccount()
+  const [historyRevision, setHistoryRevision] = useState(0)
   const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('ready')
   const practiceTrigger = useRef<PracticeId | null>(null)
   const ar = language === 'ar'
@@ -61,7 +62,7 @@ export function DashboardPage() {
         if (!controller.signal.aborted) setHistoryStatus('error')
       })
     return () => controller.abort()
-  }, [account, selectedPractice])
+  }, [account, selectedPractice, historyRevision])
 
   useEffect(() => {
     document.documentElement.lang = language
@@ -98,6 +99,7 @@ export function DashboardPage() {
           isInterview={selectedPractice.id === 'interview'}
           accessToken={account?.token ?? null}
           onClose={() => setSelectedPractice(null)}
+          onReportSaved={() => setHistoryRevision(revision => revision + 1)}
           onComplete={(interviewType) => {
             if (!sessionApiEnabled) setSessions(saveSession(selectedPractice.id, sessions, interviewType))
           }}
@@ -247,5 +249,3 @@ export function DashboardPage() {
     </div>
   )
 }
-
-

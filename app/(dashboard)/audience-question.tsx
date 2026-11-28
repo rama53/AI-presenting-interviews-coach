@@ -11,8 +11,8 @@ const answerSeconds = 30
 export function AudienceQuestion({ question, language, onClose, onFinish }: {
   question: { text: string; audio: string | null }
   language: Language
-  onClose: () => void
-  onFinish: () => void
+  onClose: (answer: string) => void
+  onFinish: (answer: string) => void
 }) {
   const ar = language === 'ar'
   const speech = usePracticeTranscript(language)
@@ -78,7 +78,7 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
       ref={dialog}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        if (!speech.busy) onClose(speech.transcript)
       }}
       className="fixed inset-0 m-auto max-h-[85dvh] w-[min(92vw,34rem)] space-y-3 overflow-auto rounded-xl border border-border bg-card p-5 text-foreground backdrop:bg-black/60"
       aria-label={ar ? 'تحدّي الجمهور' : 'Audience challenge'}
@@ -122,8 +122,8 @@ export function AudienceQuestion({ question, language, onClose, onFinish }: {
           {finished && <p role="status">{audienceAnswerTip(speech.transcript, language)}</p>}
         </>
       )}
-      {finished && <Button type="button" onClick={onFinish}>{ar ? 'إنهاء التدريب' : 'End practice'}</Button>}
-      <Button type="button" variant="outline" onClick={onClose}>{ar ? 'الرجوع للعرض' : 'Back to presentation'}</Button>
+      {finished && <Button type="button" disabled={speech.busy} onClick={() => onFinish(speech.transcript)}>{ar ? 'إنهاء التدريب' : 'End practice'}</Button>}
+      <Button type="button" variant="outline" disabled={speech.busy} onClick={() => onClose(speech.transcript)}>{ar ? 'الرجوع للعرض' : 'Back to presentation'}</Button>
     </dialog>
   )
 }

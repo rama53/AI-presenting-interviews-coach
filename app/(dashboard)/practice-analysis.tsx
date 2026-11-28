@@ -20,7 +20,6 @@ const labels = {
     followUp: 'سؤال متابعة',
     notes: 'نقاط للتحسين',
     evidence: 'من كلامك',
-    retry: 'إعادة المحاولة',
     before: 'ملاحظة على النسخة الأولى',
     compare: 'تحسين النص',
     clear: 'إنهاء المقارنة',
@@ -41,7 +40,6 @@ const labels = {
     followUp: 'Follow-up question',
     notes: 'What to improve',
     evidence: 'From your transcript',
-    retry: 'Try it again',
     before: 'Feedback on your first version',
     compare: 'Revise the transcript',
     clear: 'End comparison',
@@ -154,10 +152,6 @@ export function PracticeAnalysis({ language, mode, running, speech, previousAtte
               <blockquote dir="auto">«{result.evidence}»</blockquote>
             </figure>
           )}
-          <div className="rounded-lg bg-primary-soft p-3">
-            <h3 className="font-semibold">{text.retry}</h3>
-            <p className="mt-1">{result.retry}</p>
-          </div>
           {comparison && (
             <div className="space-y-2 rounded-lg border border-border p-3">
               <h3 className="font-semibold">{ar ? 'شو تحسّن؟' : 'What improved?'}</h3>
