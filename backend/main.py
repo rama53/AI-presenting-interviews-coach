@@ -372,6 +372,7 @@ class InterviewFeedbackInput(BaseModel):
 
 class AnswerFeedback(BaseModel):
     index: int
+    verdict: Literal["correct", "incorrect", "complete", "partial", "off_topic", "uncertain"]
     feedback: str
     improvement: str
 
@@ -406,7 +407,12 @@ def generate_interview_feedback(
         "Score only demonstrated answer quality: relevance 30%, accuracy 30%, clarity 20%, concrete evidence 20%. "
         "Do not infer personality, protected traits or hiring suitability. Never invent candidate experiences. "
         "Return JSON with score (integer 0-100), summary, strengths, improvements, action_plan (arrays of strings), "
-        "answers (one object per answer with zero-based index, feedback, improvement), "
+        "answers (one object per answer with zero-based index, verdict, feedback, improvement), "
+        "Use correct or incorrect for factual claims you can assess. If a factual answer is accurate but misses part of "
+        "the question, use partial. For personal or behavioral questions, use complete, partial, or off_topic based on "
+        "what the answer covers. Use uncertain if there is too little evidence to assess. "
+        "In feedback, explain the verdict with reference to that specific question and answer. "
+        "In improvement, say exactly what to add or correct, or say no addition is needed if the answer is complete. "
         "interviewer_scores (three integers 0-100 or null for roles without answers, HR, technical, manager; role = index modulo 3). "
         "Use specific evidence from answers. Explain uncertainty when evidence is limited. "
         "Give actionable suggestions rather than fabricated model answers."
