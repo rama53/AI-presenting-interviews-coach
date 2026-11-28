@@ -45,6 +45,15 @@ type Session =
   | { phase: 'running'; deadline: number; attachment: File | null; roomOption: number }
   | { phase: 'finished' }
 
+const answerVerdicts = {
+  correct: { ar: 'إجابة صحيحة', en: 'Correct' },
+  incorrect: { ar: 'إجابة غير صحيحة', en: 'Incorrect' },
+  complete: { ar: 'إجابة مكتملة', en: 'Complete' },
+  partial: { ar: 'إجابة ناقصة', en: 'Incomplete' },
+  off_topic: { ar: 'الإجابة خارج السؤال', en: 'Off-topic' },
+  uncertain: { ar: 'لا يمكن الحكم على الإجابة', en: 'Cannot assess' },
+}
+
 export function PracticeSession({ practice, text, language, isInterview, accessToken, onClose, onComplete }: {
   practice: Practice
   text: DashboardCopy
@@ -130,7 +139,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const streams = useRef<Partial<Record<'camera', MediaStream>>>({})
   const pending = useRef(new Set<string>())
   const generation = useRef(0)
-  const [aiFeedback, setAiFeedback] = useState<{ score: number; summary: string; strengths: string[]; improvements: string[]; action_plan: string[]; interviewer_scores: (number | null)[]; answers: { index: number; feedback: string; improvement: string }[] } | null>(null)
+  const [aiFeedback, setAiFeedback] = useState<{ score: number; summary: string; strengths: string[]; improvements: string[]; action_plan: string[]; interviewer_scores: (number | null)[]; answers: { index: number; verdict?: keyof typeof answerVerdicts; feedback: string; improvement: string }[] } | null>(null)
   const [aiFeedbackStatus, setAiFeedbackStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [interviewTurns, setInterviewTurns] = useState<{ question: string; answer: string }[]>([])
   const [interviewFollowUp, setInterviewFollowUp] = useState<string | null>(null)
@@ -679,7 +688,17 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
         const words = transcript.trim().split(/\s+/).filter(Boolean).length
         const elapsed = Math.max(0, startedWithSeconds.current - secondsLeft)
         const turns = [...interviewTurns, ...(isInterview && speech.transcript.trim() ? [{ question: interviewQuestion, answer: speech.transcript }] : [])]
-        const reviews = turns.map((turn, index) => ({ ...turn, result: analyzeTranscript({ transcript: turn.answer, language, mode: index % 3 === 1 ? 'technical' : 'personal' }) }))
+        const reviews = turns.map((turn, index) => {
+          const result = analyzeTranscript({ transcript: turn.answer, language, mode: index % 3 === 1 ? 'technical' : 'personal' })
+          const assessment = aiFeedback?.answers.find(answer => answer.index === index)
+          return {
+            ...turn,
+            result,
+            verdict: assessment?.verdict ? answerVerdicts[assessment.verdict]?.[language] : undefined,
+            feedback: assessment?.feedback,
+            improvement: assessment?.improvement || result?.note,
+          }
+        })
         const overall = analyzeTranscript({ transcript, language, mode: isInterview ? 'personal' : 'presentation', presentationTopic })
         const notes = [...new Set(isInterview ? reviews.flatMap(r => r.result ? [r.result.note] : []) : overall ? [overall.note] : [])].slice(0, 3)
         const presentationResult = presentationReview?.transcript === transcript ? presentationReview.result : null
@@ -709,8 +728,6 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             <p className="text-xs text-slate-600">{ar ? 'تقدير تدريبي لجودة الإجابات، وليس قرار توظيف.' : 'Practice estimate of answer quality, not a hiring decision.'}</p>
             {aiFeedback.interviewer_scores.map((score, i) => <div key={i}><div className="flex justify-between text-sm"><span>{roles[i]}</span><strong>{score === null ? '—' : score + '%'}</strong></div><div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-[#315B82]" style={{ width: (score ?? 0) + '%' }} /></div></div>)}
             <div className="grid gap-3 md:grid-cols-2">{[{ title: ar ? 'نقاط القوة' : 'Strengths', items: aiFeedback.strengths, color: '#CDEBDD' }, { title: ar ? 'فرص التحسين' : 'Improvements', items: aiFeedback.improvements, color: '#FCD4A5' }].map(group => <div key={group.title} className="rounded-xl p-4" style={{ background: group.color }}><h3 className="font-bold">{group.title}</h3><ul className="mt-2 list-disc space-y-2 ps-5 text-sm">{group.items.map((item, i) => <li key={i}>{item}</li>)}</ul></div>)}</div>
-            <h3 className="font-bold">{ar ? 'تحليل الإجابات' : 'Answer analysis'}</h3>
-            {aiFeedback.answers.map(a => <details key={a.index} className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer font-semibold">{turns[a.index]?.question}</summary><p className="mt-2 text-sm text-slate-600">{turns[a.index]?.answer}</p><p className="mt-3 text-sm">{a.feedback}</p><p className="mt-3 rounded-lg bg-[#F0F4FA] p-3 text-sm">{a.improvement}</p></details>)}
             <div className="rounded-xl bg-[#DCD0FA] p-4"><h3 className="font-bold">{ar ? 'خطة تطوير مخصصة' : 'Personal action plan'}</h3><ol className="mt-2 list-decimal space-y-2 ps-5 text-sm">{aiFeedback.action_plan.map((item, i) => <li key={i}>{item}</li>)}</ol></div>
           </section>}
           {!isInterview && !speech.busy && slideStatus !== 'loading' && <PresentationAIReview
@@ -723,13 +740,31 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           <h2 className="text-xl font-bold">{ar ? 'نظرة على أدائك' : 'Performance overview'}</h2>
           <div className="rounded-xl bg-white p-4">
             <details className="mb-3 text-sm text-slate-500"><summary className="cursor-pointer">{text.assessment}</summary><AssessmentCriteria title={text.assessment} criteria={isInterview ? [...new Set([...practice.criteria, ...interviewText.technicalCriteria])] : practice.criteria} /></details>
-            {overall && <div className="flex items-start gap-4 py-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#BCE8D2] text-[#175D43]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8m-8 4h5"/></svg></div><div className="flex-1"><h3 className="font-semibold">{ar ? "محتوى الكلام" : "Speech content"}</h3>{overall.evidence && <p className="mt-1 text-sm text-[#35664F]">{overall.evidence}</p>}<p className="mt-2 text-sm text-[#985321]">{overall.note}</p></div></div>}
-            {!overall && <p className="mt-3 text-sm">{ar ? 'لا يوجد نص كافٍ للتحليل.' : 'Not enough transcript for analysis.'}</p>}
+            {!isInterview && overall && <div className="flex items-start gap-4 py-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#BCE8D2] text-[#175D43]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8m-8 4h5"/></svg></div><div className="flex-1"><h3 className="font-semibold">{ar ? "محتوى الكلام" : "Speech content"}</h3>{overall.evidence && <p className="mt-1 text-sm text-[#35664F]">{overall.evidence}</p>}<p className="mt-2 text-sm text-[#985321]">{overall.note}</p></div></div>}
+            {!isInterview && !overall && <p className="mt-3 text-sm">{ar ? 'لا يوجد نص كافٍ للتحليل.' : 'Not enough transcript for analysis.'}</p>}
             <CameraFeedbackReport samples={cameraSamples.current} previous={previousCameraSamples.current} language={language} />
             {!isInterview && <PresentationFeedback transcript={transcript} slides={slideTexts} voice={voiceSamples.current} language={language} />}
           </div>
           {isInterview && <><h2 className="text-xl font-bold">{ar ? 'مراجعة الأسئلة والإجابات' : 'Question and answer review'}</h2>
-          {reviews.map((r, i) => <details key={i} open={i === 0} className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold"><span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>{r.question}</summary><div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm"><p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p><p dir="auto" className="whitespace-pre-wrap">{r.answer}</p></div></details>)}</>}
+          {reviews.map((review, i) => (
+            <details key={i} open={i === 0} className="rounded-xl bg-white p-4">
+              <summary className="cursor-pointer font-semibold">
+                <span className={`me-2 inline-block rounded-lg px-2 py-1 text-xs ${colors[i % 3]}`}>{i + 1} · {roles[i % 3]}</span>
+                {review.question}
+              </summary>
+              <div className="mt-4 space-y-3 border-t border-slate-200 pt-3 text-sm">
+                <p className="font-medium">{ar ? 'إجابتك' : 'Your answer'}</p>
+                <p dir="auto" className="whitespace-pre-wrap">{review.answer}</p>
+                <div className="space-y-2 rounded-lg bg-[#F0F4FA] p-3">
+                  <p className="font-semibold">{review.verdict ?? (aiFeedbackStatus === 'loading'
+                    ? (ar ? 'جاري تقييم الإجابة…' : 'Assessing answer…')
+                    : (ar ? 'الحكم على صحة الإجابة غير متاح' : 'Correctness assessment unavailable'))}</p>
+                  {review.feedback && <p dir="auto">{review.feedback}</p>}
+                  {review.improvement && <p><strong>{ar ? 'اقتراح للتحسين' : 'Suggested improvement'}</strong><br />{review.improvement}</p>}
+                </div>
+              </div>
+            </details>
+          ))}</>}
           <div className="rounded-xl bg-[#CDEBDD] p-5"><h2 className="text-lg font-bold">{ar ? 'خطة التدريب القادمة' : 'Next practice plan'}</h2>{notes.length ? <ol className="mt-3 list-decimal space-y-2 ps-5 text-sm">{notes.map(note => <li key={note}>{note}</li>)}</ol> : <p className="mt-2 text-sm">{ar ? 'سجّل إجابة أو عرضًا للحصول على ملاحظات مخصصة.' : 'Record an answer or presentation for tailored feedback.'}</p>}</div>
           <details className="rounded-xl bg-white p-4"><summary className="cursor-pointer font-semibold">{ar ? 'النص الكامل والمراجعة' : 'Full transcript and revision'}</summary><PracticeAnalysis presentationTopic={presentationTopic} previousAttempt={previousAttempt} speech={isInterview ? { ...speech, transcript: interviewReportTranscript, setTranscript: value => setInterviewTranscriptEdit(typeof value === 'function' ? value(interviewReportTranscript) : value) } : speech} language={language} mode={isInterview ? 'personal' : 'presentation'} running={false} /></details>
           {accessToken && remoteSessionId.current && (recordingFile || savedComments.length > 0)
@@ -738,7 +773,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
                 sessionId={remoteSessionId.current} arabic={ar} recording={recordingFile} comments={savedComments} />
           )}
           <Button type="button" variant="outline" onClick={() => {
-            const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.result?.note, r.result?.retry].filter(Boolean).join('\n')), transcript, ...notes, ...(presentationResult?.score != null ? [String(presentationResult.score) + '/100'] : []), ...(audienceFeedback && audienceAnswer ? [audienceAnswer.question, audienceAnswer.answer] : []), ...presentationComments, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan, ...aiFeedback.answers.map(a => [turns[a.index]?.question, a.feedback, a.improvement].join('\n'))] : [])].join('\n\n')
+            const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.verdict, r.feedback, r.improvement].filter(Boolean).join('\n')), transcript, ...notes, ...(presentationResult?.score != null ? [String(presentationResult.score) + '/100'] : []), ...(audienceFeedback && audienceAnswer ? [audienceAnswer.question, audienceAnswer.answer] : []), ...presentationComments, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan] : [])].join('\n\n')
             const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
             const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
           }}>{ar ? 'حفظ التقرير' : 'Download report'}</Button>
