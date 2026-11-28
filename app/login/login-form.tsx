@@ -8,12 +8,16 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAccount } from '@/app/account-provider'
 import { sessionApiEnabled, signIn } from '@/lib/practice-session-api'
 import taleeqLogo from '../(dashboard)/taleeq-logo.png'
-import taleeqVerses from '../(dashboard)/taleeq-verses.png'
 
 const inputClass = 'block min-h-[3.25rem] w-full rounded-xl border border-white/15 bg-[#101e31]/55 ps-11 pe-4 text-start text-base text-white transition-colors hover:border-white/30 focus-visible:border-sidebar-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-highlight'
 const inputIconClass = 'pointer-events-none absolute start-4 top-1/2 size-[1.125rem] -translate-y-1/2 text-sidebar-muted'
 
-const calligraphyMask = { maskImage: `url("${taleeqVerses.src}")` }
+// Crop individual marks from the existing Taleeq artwork.
+const shadda = [150, 625, 135, 145] as const
+const curvedMark = [956, 302, 66, 152] as const
+const stroke = [1167, 340, 218, 135] as const
+const dots = [305, 468, 188, 130] as const
+const edgeMarks = [shadda, stroke, curvedMark, dots, shadda, stroke] as const
 
 export function LoginForm() {
   const router = useRouter()
@@ -60,11 +64,19 @@ export function LoginForm() {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="login-dust login-dust-warm" />
         <div className="login-dust login-dust-cool" />
-        <div className="login-script login-script-warm">
-          <span className="dashboard-verse" style={calligraphyMask} />
-        </div>
-        <div className="login-script login-script-cool">
-          <span className="dashboard-verse" style={calligraphyMask} />
+        <div className="login-marks">
+          {edgeMarks.map(([x, y, width, height], index) => (
+            <span
+              key={index}
+              className="login-mark"
+              style={{
+                aspectRatio: width / height,
+                maskImage: `url("${taleeqLogo.src}")`,
+                maskSize: `${taleeqLogo.width / width * 100}% ${taleeqLogo.height / height * 100}%`,
+                maskPosition: `${x / (taleeqLogo.width - width) * 100}% ${y / (taleeqLogo.height - height) * 100}%`,
+              }}
+            />
+          ))}
         </div>
       </div>
 
@@ -133,12 +145,8 @@ export function LoginForm() {
             linear-gradient(150deg, #192c46 0%, #111f33 76%);
         }
 
-        .login-dust,
-        .login-script {
-          position: absolute;
-        }
-
         .login-dust {
+          position: absolute;
           aspect-ratio: 1;
           width: clamp(16rem, 52vw, 48rem);
         }
@@ -165,42 +173,76 @@ export function LoginForm() {
             radial-gradient(circle at 48% 42%, #709bcc36 0%, transparent 57%);
         }
 
-        .login-script {
-          width: clamp(15rem, 36vw, 33rem);
+        .login-marks {
+          position: absolute;
+          inset: 0;
         }
 
-        .login-script-warm {
-          top: 21%;
-          right: -4rem;
-          color: #f4a67d;
-          opacity: 0.19;
-          rotate: -13deg;
+        .login-mark {
+          position: absolute;
+          display: block;
+          width: var(--mark-width);
+          background: #ffa373;
+          opacity: var(--mark-opacity);
+          rotate: var(--mark-rotation);
+          mask-repeat: no-repeat;
         }
 
-        .login-script-cool {
-          bottom: 17%;
-          left: -5rem;
-          color: #86a9d2;
-          opacity: 0.15;
-          rotate: -13deg;
+        .login-mark:nth-child(1) {
+          top: 18%;
+          left: 11%;
+          --mark-width: clamp(1.4rem, 3.3vw, 2.8rem);
+          --mark-opacity: 0.84;
+          --mark-rotation: -17deg;
         }
 
-        .login-script > span {
-          background-color: currentColor;
+        .login-mark:nth-child(2) {
+          top: 34%;
+          left: 19%;
+          --mark-width: clamp(1rem, 2.1vw, 1.8rem);
+          --mark-opacity: 0.49;
+          --mark-rotation: -22deg;
+        }
+
+        .login-mark:nth-child(3) {
+          bottom: 19%;
+          left: 13%;
+          --mark-width: clamp(0.7rem, 1.7vw, 1.4rem);
+          --mark-opacity: 0.7;
+          --mark-rotation: 18deg;
+        }
+
+        .login-mark:nth-child(4) {
+          top: 23%;
+          right: 13%;
+          --mark-width: clamp(1rem, 2.6vw, 2.2rem);
+          --mark-opacity: 0.65;
+          --mark-rotation: 10deg;
+        }
+
+        .login-mark:nth-child(5) {
+          top: 48%;
+          right: 9%;
+          --mark-width: clamp(1.3rem, 3.1vw, 2.5rem);
+          --mark-opacity: 0.8;
+          --mark-rotation: 16deg;
+        }
+
+        .login-mark:nth-child(6) {
+          bottom: 18%;
+          right: 18%;
+          --mark-width: clamp(1rem, 2.1vw, 1.8rem);
+          --mark-opacity: 0.55;
+          --mark-rotation: 10deg;
         }
 
         @media (max-width: 640px) {
-          .login-script-warm {
-            top: 11%;
-            right: -8rem;
-            opacity: 0.13;
-          }
-
-          .login-script-cool {
-            bottom: 9%;
-            left: -9rem;
-            opacity: 0.11;
-          }
+          .login-mark:nth-child(1) { left: 5%; }
+          .login-mark:nth-child(2) { top: 30%; left: 3%; }
+          .login-mark:nth-child(3) { bottom: 9%; left: 5%; }
+          .login-mark:nth-child(4) { right: 6%; }
+          .login-mark:nth-child(5) { right: 3%; }
+          .login-mark:nth-child(6) { bottom: 8%; right: 6%; }
         }
 
         .login-card {
@@ -210,12 +252,12 @@ export function LoginForm() {
 
         @media (prefers-reduced-motion: no-preference) {
           .login-dust,
-          .login-script {
+          .login-mark {
             animation: login-background-drift 22s ease-in-out infinite alternate;
           }
 
           .login-dust-cool,
-          .login-script-warm {
+          .login-mark:nth-child(even) {
             animation-direction: alternate-reverse;
           }
 
