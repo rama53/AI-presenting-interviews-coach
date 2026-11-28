@@ -53,16 +53,18 @@ export function LoginForm() {
       className="grid min-h-dvh place-items-center bg-sidebar px-4 py-10 sm:px-6 sm:py-14"
     >
       <div className="flex w-full max-w-[26rem] flex-col items-center gap-7 sm:gap-9">
-        <Image
-          src={taleeqLogo}
-          alt={english ? 'Taleeq' : 'طليق'}
-          className="h-auto w-32 brightness-0 invert sm:w-40"
-          loading="eager"
-        />
+        <div className="login-logo">
+          <Image
+            src={taleeqLogo}
+            alt={english ? 'Taleeq' : 'طليق'}
+            className="h-auto w-32 brightness-0 invert sm:w-40"
+            loading="eager"
+          />
+        </div>
 
         <section
           aria-labelledby="login-title"
-          className="w-full rounded-[2rem] border border-border bg-card px-6 py-7 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.65)] sm:px-9 sm:py-9"
+          className="login-card w-full rounded-[2rem] border border-border bg-card px-6 py-7 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.65)] sm:px-9 sm:py-9"
         >
           <h1 id="login-title" className="mb-7 text-center text-[1.75rem] font-semibold leading-tight text-sidebar">
             {english ? 'Sign in' : 'تسجيل الدخول'}
@@ -98,6 +100,40 @@ export function LoginForm() {
           </Link>
         </section>
       </div>
+
+      <style jsx>{`
+        @media (prefers-reduced-motion: no-preference) {
+          .login-logo {
+            animation: login-logo-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+
+          .login-card {
+            animation: login-card-enter 430ms ease-out 620ms both;
+          }
+
+          @keyframes login-logo-rise {
+            0%, 22% {
+              transform: translateY(clamp(3rem, 13vh, 7rem));
+            }
+
+            100% {
+              transform: translateY(0);
+            }
+          }
+
+          @keyframes login-card-enter {
+            from {
+              opacity: 0;
+              transform: translateY(1rem);
+            }
+
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        }
+      `}</style>
     </main>
   )
 }
