@@ -64,6 +64,7 @@ export function LoginForm() {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="login-dust login-dust-warm" />
         <div className="login-dust login-dust-cool" />
+        <div className="login-lights" />
         <div className="login-marks">
           {edgeMarks.map(([x, y, width, height], index) => (
             <span
@@ -173,6 +174,22 @@ export function LoginForm() {
             radial-gradient(circle at 48% 42%, #709bcc36 0%, transparent 57%);
         }
 
+        .login-lights {
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 10% 22%, #fff9 0 1px, #fff3 3px, transparent 9px),
+            radial-gradient(circle at 17% 28%, #fff4 0 2px, #fff1 5px, transparent 14px),
+            radial-gradient(circle at 8% 65%, #fff5 0 2px, #deebff18 7px, transparent 22px),
+            radial-gradient(circle at 15% 78%, #fff8 0 1px, transparent 5px),
+            radial-gradient(circle at 88% 16%, #fff4 0 2px, #fff1 6px, transparent 17px),
+            radial-gradient(circle at 94% 36%, #fff8 0 1px, #fff2 4px, transparent 11px),
+            radial-gradient(circle at 90% 68%, #fff9 0 1px, transparent 6px),
+            radial-gradient(circle at 84% 76%, #fff4 0 2px, #fff1 8px, transparent 24px),
+            radial-gradient(ellipse at 7% 65%, #dce9ff12 0%, transparent 22%),
+            radial-gradient(ellipse at 95% 28%, #fff1 0%, transparent 24%);
+        }
+
         .login-marks {
           position: absolute;
           inset: 0;
@@ -189,54 +206,55 @@ export function LoginForm() {
         }
 
         .login-mark:nth-child(1) {
-          top: 18%;
-          left: 11%;
+          top: 26%;
+          left: 12%;
           --mark-width: clamp(1.4rem, 3.3vw, 2.8rem);
           --mark-opacity: 0.84;
           --mark-rotation: -17deg;
         }
 
         .login-mark:nth-child(2) {
-          top: 34%;
-          left: 19%;
+          top: 38%;
+          left: 16%;
           --mark-width: clamp(1rem, 2.1vw, 1.8rem);
           --mark-opacity: 0.49;
           --mark-rotation: -22deg;
         }
 
         .login-mark:nth-child(3) {
-          bottom: 19%;
-          left: 13%;
+          bottom: 23%;
+          left: 10%;
           --mark-width: clamp(0.7rem, 1.7vw, 1.4rem);
           --mark-opacity: 0.7;
           --mark-rotation: 18deg;
         }
 
         .login-mark:nth-child(4) {
-          top: 23%;
-          right: 13%;
+          top: 24%;
+          right: 12%;
           --mark-width: clamp(1rem, 2.6vw, 2.2rem);
           --mark-opacity: 0.65;
           --mark-rotation: 10deg;
         }
 
         .login-mark:nth-child(5) {
-          top: 48%;
-          right: 9%;
+          top: 43%;
+          right: 10%;
           --mark-width: clamp(1.3rem, 3.1vw, 2.5rem);
           --mark-opacity: 0.8;
           --mark-rotation: 16deg;
         }
 
         .login-mark:nth-child(6) {
-          bottom: 18%;
-          right: 18%;
+          bottom: 26%;
+          right: 15%;
           --mark-width: clamp(1rem, 2.1vw, 1.8rem);
           --mark-opacity: 0.55;
           --mark-rotation: 10deg;
         }
 
         @media (max-width: 640px) {
+          .login-lights { opacity: 0.65; }
           .login-mark:nth-child(1) { left: 5%; }
           .login-mark:nth-child(2) { top: 30%; left: 3%; }
           .login-mark:nth-child(3) { bottom: 9%; left: 5%; }
@@ -269,6 +287,15 @@ export function LoginForm() {
             to {
               transform: translate(1.1rem, -0.8rem);
             }
+          }
+
+          .login-lights {
+            animation: login-lights-shimmer 15s ease-in-out infinite alternate;
+          }
+
+          @keyframes login-lights-shimmer {
+            from { transform: translateY(-0.3rem); }
+            to { transform: translateY(0.5rem); }
           }
 
           .login-logo {
