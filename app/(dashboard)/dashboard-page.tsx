@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useAccount } from '@/app/account-provider'
 import { Button } from '@/components/ui/button'
-import { loadRecentSessions, sessionApiEnabled, signIn } from '@/lib/practice-session-api'
+import { loadRecentSessions, sessionApiEnabled } from '@/lib/practice-session-api'
 import { ArrowRight, AudioLines, Lightbulb, MessageSquareText, Sparkles } from 'lucide-react'
 import { copy, type Language } from './copy'
 import { LanguageSelect } from './language-select'
@@ -23,31 +25,10 @@ export function DashboardPage() {
   const [language, setLanguage] = useState<Language>('ar')
   const text = copy[language]
   const [sessions, setSessions] = useState<SessionRecord[]>([])
-  const [account, setAccount] = useState<{ email: string; token: string } | null>(null)
-  const [signingIn, setSigningIn] = useState(false)
-  const [signInError, setSignInError] = useState(false)
+  const { account, setAccount } = useAccount()
   const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('ready')
   const practiceTrigger = useRef<PracticeId | null>(null)
   const ar = language === 'ar'
-
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (signingIn) return
-    const form = event.currentTarget
-    const fields = new FormData(form)
-    const email = String(fields.get('email') ?? '').trim()
-    setSigningIn(true)
-    setSignInError(false)
-    try {
-      const token = await signIn(email, String(fields.get('password') ?? ''))
-      form.reset()
-      setAccount({ email, token })
-    } catch {
-      setSignInError(true)
-    } finally {
-      setSigningIn(false)
-    }
-  }
 
   useEffect(() => {
     if (!sessionApiEnabled) setSessions(readSessions())
@@ -152,18 +133,9 @@ export function DashboardPage() {
                 <Button variant="outline" onClick={() => { setAccount(null); setSessions([]); setHistoryStatus('ready') }}>{ar ? 'تسجيل الخروج' : 'Sign out'}</Button>
               </div>
             ) : (
-              <form onSubmit={handleSignIn} className="grid gap-3">
-                <label className="text-sm">
-                  {ar ? 'البريد الإلكتروني' : 'Email'}
-                  <input name="email" type="email" autoComplete="username" dir="ltr" required className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2" />
-                </label>
-                <label className="text-sm">
-                  {ar ? 'كلمة المرور' : 'Password'}
-                  <input name="password" type="password" autoComplete="current-password" dir="ltr" required className="mt-1 block w-full rounded-lg border border-input bg-background px-3 py-2" />
-                </label>
-                {signInError && <p role="alert" className="text-sm text-red-600">{ar ? 'تعذّر تسجيل الدخول. تأكدي من بيانات الحساب وحاولي مرة ثانية.' : 'Could not sign in. Check your account details and try again.'}</p>}
-                <Button type="submit" disabled={signingIn} className="justify-self-start">{signingIn ? (ar ? 'جارٍ تسجيل الدخول…' : 'Signing in…') : (ar ? 'دخول' : 'Sign in')}</Button>
-              </form>
+              <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2">
+                {ar ? 'انتقلي إلى صفحة تسجيل الدخول' : 'Go to sign in'}
+              </Link>
             )}
           </section>
         )}

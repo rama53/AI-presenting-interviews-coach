@@ -4,6 +4,7 @@ import '@fontsource/aref-ruqaa/arabic-700.css'
 import '@fontsource/ibm-plex-sans-arabic/400.css'
 import '@fontsource/ibm-plex-sans-arabic/500.css'
 import '@fontsource/ibm-plex-sans-arabic/600.css'
+import { AccountProvider } from './account-provider'
 import './globals.css'
 
 const pagesBasePath = process.env.NEXT_PUBLIC_GITHUB_PAGES_BASE_PATH
@@ -45,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body className="antialiased">
-        {children}
+        <AccountProvider>{children}</AccountProvider>
         {process.env.NODE_ENV === 'production' && pagesBasePath === undefined && <Analytics />}
       </body>
     </html>
