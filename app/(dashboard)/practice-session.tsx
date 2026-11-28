@@ -128,7 +128,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const streams = useRef<Partial<Record<'camera', MediaStream>>>({})
   const pending = useRef(new Set<string>())
   const generation = useRef(0)
-  const [aiFeedback, setAiFeedback] = useState<{ score: number; summary: string; strengths: string[]; improvements: string[]; action_plan: string[]; interviewer_scores: (number | null)[]; answers: { index: number; feedback: string; improvement: string }[] } | null>(null)
+  const [aiFeedback, setAiFeedback] = useState<{ score: number; score_saved?: boolean | null; summary: string; strengths: string[]; improvements: string[]; action_plan: string[]; interviewer_scores: (number | null)[]; answers: { index: number; feedback: string; improvement: string }[] } | null>(null)
   const [aiFeedbackStatus, setAiFeedbackStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [interviewTurns, setInterviewTurns] = useState<{ question: string; answer: string }[]>([])
   const [interviewFollowUp, setInterviewFollowUp] = useState<string | null>(null)
@@ -219,17 +219,24 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     }
   }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer, accessToken, generatingInterviewQuestion])
 
+  const remoteSessionId = useRef<string | null>(null)
+  const [feedbackAttempt, setFeedbackAttempt] = useState(0)
+
   useEffect(() => {
     if (!isInterview || session.phase !== 'finished' || speech.busy) return
     const history = [...interviewTurns, ...(speech.transcript.trim() ? [{ question: interviewQuestion, answer: speech.transcript }] : [])]
     const api = process.env.NEXT_PUBLIC_TALEEQ_API_URL
     if (!history.length || !api) return
     const controller = new AbortController()
+    const endpoint = new URL(api.replace(/\/$/, '') + '/ai/interview/feedback', location.origin)
+    if (accessToken && remoteSessionId.current) {
+      endpoint.searchParams.set('session_id', remoteSessionId.current)
+    }
     setAiFeedback(null)
     setAiFeedbackStatus('loading')
     void (async () => {
       try {
-        const response = await fetch(api.replace(/\/$/, '') + '/ai/interview/feedback', {
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: 'Bearer ' + accessToken } : {}) },
           body: JSON.stringify({ role: (interview?.jobTitle || 'General interview').slice(0, 200), job_description: (interview?.jobDescription ?? '').slice(0, 12000), language, history: history.map(t => ({ question: t.question.slice(0, 600), answer: t.answer.slice(0, 6000) })) }),
@@ -241,11 +248,10 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
       } catch { if (!controller.signal.aborted) setAiFeedbackStatus('error') }
     })()
     return () => controller.abort()
-  }, [isInterview, session.phase, speech.busy, speech.transcript, interviewTurns, interviewQuestion, interview, language, accessToken])
+  }, [isInterview, session.phase, speech.busy, speech.transcript, interviewTurns, interviewQuestion, interview, language, accessToken, feedbackAttempt])
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
-  const remoteSessionId = useRef<string | null>(null)
   const finishing = useRef(false)
   const autoFinishAttempted = useRef(false)
   const [finishError, setFinishError] = useState('')
@@ -687,6 +693,14 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
           <div className="grid grid-cols-3 gap-2 sm:gap-4">{stats.map((stat, i) => <div key={stat.label} className={`rounded-xl p-3 sm:p-5 ${colors[i]}`}><svg className="mb-3 h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{i === 0 ? <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></> : i === 1 ? <><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3"/></> : <path d="M3 10v4m4-7v10m5-14v18m5-14v10m4-7v4"/>}</svg><p className="text-3xl font-bold tabular-nums text-[#182D43] text-start" dir="ltr">{stat.value}</p><p className="mt-2 text-xs font-medium">{stat.label}</p></div>)}</div>
           {isInterview && aiFeedbackStatus === 'loading' && <div role="status" className="rounded-xl bg-white p-5 animate-pulse">{ar ? 'جاري تحليل إجاباتك بالذكاء الاصطناعي…' : 'AI is reviewing your answers…'}</div>}
           {isInterview && aiFeedbackStatus === 'error' && <p role="status" className="rounded-xl bg-white p-4 text-sm">{ar ? 'تعذر التحليل الذكي. التقرير المحلي متاح أدناه.' : 'AI feedback unavailable. Local feedback is available below.'}</p>}
+          {isInterview && aiFeedback?.score_saved === false && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 text-sm">
+              <p role="status">{ar ? 'التقييم جاهز، بس تعذّر حفظ الدرجة في سجل الجلسات.' : 'Your review is ready, but the score could not be saved to your history.'}</p>
+              <Button type="button" variant="outline" onClick={() => setFeedbackAttempt(attempt => attempt + 1)}>
+                {ar ? 'أعد التقييم والحفظ' : 'Retry review and save'}
+              </Button>
+            </div>
+          )}
           {isInterview && aiFeedback && <section className="space-y-4 rounded-2xl bg-white p-5 text-[#142B49]">
             <div className="flex items-center gap-5"><div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-8 border-[#29966B] text-3xl font-bold">{aiFeedback.score}<span className="text-xs">/100</span></div><div><h2 className="text-xl font-bold">{ar ? 'تقييم المقابلة الذكي' : 'AI interview review'}</h2><p className="mt-2 text-sm">{aiFeedback.summary}</p></div></div>
             <p className="text-xs text-slate-600">{ar ? 'تقدير تدريبي لجودة الإجابات، وليس قرار توظيف.' : 'Practice estimate of answer quality, not a hiring decision.'}</p>

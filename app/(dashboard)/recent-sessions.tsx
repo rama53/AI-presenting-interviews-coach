@@ -15,6 +15,7 @@ export type SessionRecord = {
   practice: PracticeId
   completedAt: string
   interviewType?: InterviewType
+  interviewScore?: number
   report?: SavedPracticeReport
 }
 

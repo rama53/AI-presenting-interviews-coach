@@ -23,6 +23,17 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
   }
 
   const peak = Math.max(1, ...Array.from(days.values(), day => day.count))
+  const scoredInterviews = [...recent].reverse().flatMap(session => {
+    const score = session.interviewScore
+    const date = new Date(session.completedAt)
+    if (session.practice !== 'interview' || typeof score !== 'number' ||
+        !Number.isInteger(score) || score < 0 || score > 100 || !Number.isFinite(date.getTime())) return []
+    return [{ id: session.id, score, date: dateFormat.format(date) }]
+  })
+  const average = scoredInterviews.length
+    ? scoredInterviews.reduce((sum, session) => sum + session.score, 0) / scoredInterviews.length
+    : null
+  const formatScore = new Intl.NumberFormat(language, { maximumFractionDigits: 1 })
   const interviews = recent.filter(session => session.practice === 'interview').length
   const presentations = recent.length - interviews
   const breakdown = [
@@ -74,6 +85,32 @@ export function TrainingCharts({ sessions, language, historyMessage }: {
                 </li>
               ))}
             </ul>
+          </figure>
+          <figure className="border-t border-border p-5 sm:p-6 md:col-span-2">
+            <figcaption className="font-semibold">{ar ? 'درجات المقابلات' : 'Interview scores'}</figcaption>
+            {average === null ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {ar ? 'بتظهر الدرجة بعد أول مقابلة يتم تقييمها وحفظها.' : 'Scores appear after your first scored interview is saved.'}
+              </p>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {ar ? 'متوسط المقابلات المقيّمة' : 'Average for scored interviews'}{' '}
+                  <bdi className="font-semibold text-sidebar">{formatScore.format(average)} / {formatNumber.format(100)}</bdi>
+                </p>
+                <ul className="mt-4 grid gap-3" role="list">
+                  {scoredInterviews.map(({ id, date, score }) => (
+                    <li key={id} className="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-3 text-xs">
+                      <span className="text-muted-foreground">{date}</span>
+                      <span aria-hidden="true" className="block h-2.5 overflow-hidden rounded-full bg-muted">
+                        <span className="block h-full rounded-full bg-[#427d72]" style={{ width: `${score}%` }} />
+                      </span>
+                      <bdi className="text-end font-semibold text-sidebar">{formatNumber.format(score)}</bdi>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </figure>
         </div>
       )}

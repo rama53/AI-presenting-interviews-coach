@@ -58,8 +58,8 @@ export async function loadRecentSessions(token: string, signal: AbortSignal) {
     signal,
   })
   if (!result.ok) throw new Error('history')
-  const rows: { id: string; practice_type: 'interview' | 'presentation'; ended_at: string; report?: SavedPracticeReport | null }[] = await result.json()
-  return rows.map(row => ({ id: row.id, practice: row.practice_type, completedAt: row.ended_at, report: row.report ?? undefined }))
+  const rows: { id: string; practice_type: 'interview' | 'presentation'; ended_at: string; interview_score?: number | null; report?: SavedPracticeReport | null }[] = await result.json()
+  return rows.map(row => ({ id: row.id, practice: row.practice_type, completedAt: row.ended_at, interviewScore: row.interview_score ?? undefined, report: row.report ?? undefined }))
 }
 
 export async function signIn(email: string, password: string): Promise<string> {

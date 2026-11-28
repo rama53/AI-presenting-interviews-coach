@@ -122,7 +122,7 @@ def recent_sessions(
     credentials: HTTPAuthorizationCredentials = Depends(bearer)
 ):
     return supabase_request(
-        "/rest/v1/practice_sessions?select=id,practice_type,ended_at,report"
+        "/rest/v1/practice_sessions?select=id,practice_type,ended_at,report,interview_score"
         "&ended_at=not.is.null&order=ended_at.desc,id.desc&limit=5",
         credentials.credentials,
     )
@@ -384,17 +384,39 @@ class InterviewFeedbackOutput(BaseModel):
     action_plan: list[str]
     answers: list[AnswerFeedback]
     interviewer_scores: list[int | None]
+    score_saved: bool | None = None
 
 
 @app.post("/ai/interview/feedback", response_model=InterviewFeedbackOutput)
 def generate_interview_feedback(
     data: InterviewFeedbackInput,
     credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    session_id: UUID | None = None,
 ):
+    user = None
     if os.getenv("TALEEQ_AI_LOCAL_TEST") != "1":
         if credentials is None:
             raise HTTPException(401, "Sign-in required")
-        supabase_request("/auth/v1/user", credentials.credentials)
+        user = supabase_request("/auth/v1/user", credentials.credentials)
+
+    def save_score(report: InterviewFeedbackOutput) -> InterviewFeedbackOutput:
+        if session_id is None or credentials is None or user is None:
+            return report
+        try:
+            owner_id = UUID(user["id"])
+            rows = supabase_request(
+                f"/rest/v1/practice_sessions?id=eq.{session_id}&user_id=eq.{owner_id}"
+                "&practice_type=eq.interview&ended_at=not.is.null",
+                credentials.credentials,
+                {"interview_score": report.score},
+                method="PATCH",
+            )
+            report.score_saved = bool(rows)
+        except (HTTPException, KeyError, TypeError, ValueError) as error:
+            print("Interview score could not be saved:", type(error).__name__, flush=True)
+            report.score_saved = False
+        return report
+
     key = os.getenv("GEMINI_API_KEY")
     model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     if not key and not os.getenv("GROQ_API_KEY"):
@@ -422,7 +444,7 @@ def generate_interview_feedback(
                 if i >= len(data.history):
                     report.interviewer_scores[i] = None
             print("AI feedback provider: Groq", flush=True)
-            return report
+            return save_score(report)
         except (HTTPError, URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
             print("Groq feedback failed:", getattr(error, "code", type(error).__name__), flush=True)
             if hasattr(error, "errors"):
@@ -454,7 +476,7 @@ def generate_interview_feedback(
                 if i >= len(data.history):
                     report.interviewer_scores[i] = None
             print("AI feedback provider: Gemini", flush=True)
-            return report
+            return save_score(report)
         except (HTTPError, URLError, TimeoutError, ValueError, KeyError, IndexError, TypeError) as error:
             print("Gemini feedback failed:", getattr(error, "code", type(error).__name__), flush=True)
     raise HTTPException(502, "AI feedback service unavailable")
