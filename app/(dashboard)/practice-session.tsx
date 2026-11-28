@@ -14,6 +14,8 @@ import { PresentationAIReview, presentationAIAvailable, requestPresentationAI, t
 import { PresentationFeedback, PresentationVoiceMonitor } from './presentation-feedback'
 import { questionFromSlides, type VoiceSamples } from '@/lib/presentation-feedback'
 import { AudienceQuestion } from './audience-question'
+import { PerformanceReportCharts } from './performance-report-charts'
+import type { PerformanceChartData } from '@/lib/performance-report-charts'
 import { CameraFeedback, CameraFeedbackReport } from './camera-feedback'
 import { emptyCameraSamples, type CameraSamples } from '@/lib/camera-feedback'
 import { InterviewDocument } from './interview-document'
@@ -62,7 +64,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   accessToken: string | null
   onClose: () => void
   onReportSaved: () => void
-  onComplete: (interviewType?: InterviewType) => void
+  onComplete: (interviewType: InterviewType | undefined, charts: PerformanceChartData) => void
 }) {
   const [session, setSession] = useState<Session>({ phase: 'ready' })
   const savingStart = useRef(false)
@@ -168,10 +170,12 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     audio.gain.gain.setTargetAtTime(level, audio.context.currentTime, 0.15)
   }, [session.phase, ambienceRoom, ambienceMuted, paused, speech.busy, speakingInterviewer, audienceQuestion])
 
+  const shownInterviewQuestions = useRef(0)
   const activeInterviewer = interviewTurns.length % 3
   const interviewerRoles = language === 'ar' ? ['الموارد البشرية', 'المحاور التقني', 'مدير التوظيف'] : ['HR Interviewer', 'Technical Interviewer', 'Hiring Manager']
   useEffect(() => {
     if (!isInterview || session.phase !== 'running' || paused || interviewComplete || generatingInterviewQuestion) return
+    shownInterviewQuestions.current = interviewTurns.length + 1
     let cancelled = false
     let audio: HTMLAudioElement | undefined
     let objectUrl: string | undefined
@@ -229,7 +233,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
       if ('speechSynthesis' in window) window.speechSynthesis.cancel()
       setSpeakingInterviewer(false)
     }
-  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer, accessToken, generatingInterviewQuestion])
+  }, [isInterview, session.phase, paused, interviewComplete, interviewQuestion, language, activeInterviewer, accessToken, generatingInterviewQuestion, interviewTurns.length])
 
   useEffect(() => {
     if (!isInterview || session.phase !== 'finished' || speech.busy) return
@@ -257,6 +261,8 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
   const interviewReportTranscript = interviewTranscriptEdit ?? [...interviewTurns.map(({ answer }) => answer), speech.transcript].filter(Boolean).join('\n\n')
   const heading = useRef<HTMLHeadingElement>(null)
   const completed = useRef(false)
+  const completionReported = useRef(false)
+  const chartExport = useRef<HTMLDivElement>(null)
   const remoteSessionId = useRef<string | null>(null)
   const finishing = useRef(false)
   const autoFinishAttempted = useRef(false)
@@ -280,8 +286,21 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     }
     completed.current = true
     setSession({ phase: 'finished' })
-    onComplete(interview?.type)
-  }, [accessToken, interview?.type, language, onComplete, stopMicrophone, stopRecording])
+  }, [accessToken, language, stopMicrophone, stopRecording])
+
+  const recordedAnswers = interviewTurns.length + Number(Boolean(speech.transcript.trim()))
+  const { total: cameraTotal, visible: cameraVisible } = cameraSamples.current
+  const questionCount = Math.max(shownInterviewQuestions.current, recordedAnswers)
+  const chartData = useMemo<PerformanceChartData>(() => ({
+    camera: { total: cameraTotal, visible: cameraVisible },
+    ...(isInterview && { questions: Array.from({ length: questionCount }, (_, index) => index < recordedAnswers) }),
+  }), [cameraTotal, cameraVisible, isInterview, questionCount, recordedAnswers])
+
+  useEffect(() => {
+    if (session.phase !== 'finished' || speech.busy || completionReported.current) return
+    completionReported.current = true
+    onComplete(interview?.type, chartData)
+  }, [session.phase, speech.busy, onComplete, interview?.type, chartData])
 
   useEffect(() => {
     heading.current?.focus()
@@ -526,6 +545,7 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
     setPreviousAttempt(speech.transcript)
     speech.setTranscript('')
     completed.current = false
+    completionReported.current = false
     autoFinishAttempted.current = false
     resetRecording()
     setAudienceQuestion(null)
@@ -738,7 +758,8 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             automatic={usePresentationAI}
             onResult={setPresentationReview}
           />}
-          <h2 className="text-xl font-bold">{ar ? 'نظرة على أدائك' : 'Performance overview'}</h2>
+          <h2 className="text-xl font-bold">{text.reportCharts.performance}</h2>
+          <div ref={chartExport}><PerformanceReportCharts data={chartData} language={language} /></div>
           <div className="rounded-xl bg-white p-4">
             <details className="mb-3 text-sm text-slate-500"><summary className="cursor-pointer">{text.assessment}</summary><AssessmentCriteria title={text.assessment} criteria={isInterview ? [...new Set([...practice.criteria, ...interviewText.technicalCriteria])] : practice.criteria} /></details>
             {!isInterview && overall && <div className="flex items-start gap-4 py-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#BCE8D2] text-[#175D43]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4h16v12H9l-5 4z"/><path d="M8 8h8m-8 4h5"/></svg></div><div className="flex-1"><h3 className="font-semibold">{ar ? "محتوى الكلام" : "Speech content"}</h3>{overall.evidence && <p className="mt-1 text-sm text-[#35664F]">{overall.evidence}</p>}<p className="mt-2 text-sm text-[#985321]">{overall.note}</p></div></div>}
@@ -772,12 +793,32 @@ export function PracticeSession({ practice, text, language, isInterview, accessT
             {accessToken && remoteSessionId.current && !speech.busy && (
               <SaveSessionFeedback key={remoteSessionId.current} token={accessToken}
                 sessionId={remoteSessionId.current} arabic={ar} recording={recordingFile}
-                comments={savedComments} onSaved={onReportSaved} />
+                comments={savedComments} charts={chartData} onSaved={onReportSaved} />
             )}
             <button type="button" className="ms-auto text-sm font-medium text-[#315B82] underline underline-offset-4 hover:text-[#142B49] focus-visible:outline-2 focus-visible:outline-offset-4" onClick={() => {
               const report = [ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report', ...stats.map(x => x.label + ': ' + x.value), ...reviews.map(r => [r.question, r.answer, r.verdict, r.feedback, r.improvement].filter(Boolean).join('\n')), transcript, ...notes, ...(presentationResult?.score != null ? [String(presentationResult.score) + '/100'] : []), ...(audienceFeedback && audienceAnswer ? [audienceAnswer.question, audienceAnswer.answer] : []), ...presentationComments, ...(aiFeedback ? [String(aiFeedback.score) + '/100', aiFeedback.summary, ...aiFeedback.strengths, ...aiFeedback.improvements, ...aiFeedback.action_plan] : [])].join('\n\n')
-              const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }))
-              const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+              const exported = document.implementation.createHTMLDocument(ar ? 'طليق - تقرير الأداء' : 'Taleek - Performance report')
+              exported.documentElement.lang = language
+              exported.documentElement.dir = ar ? 'rtl' : 'ltr'
+              const charset = exported.createElement('meta')
+              charset.setAttribute('charset', 'utf-8')
+              const viewport = exported.createElement('meta')
+              viewport.name = 'viewport'
+              viewport.content = 'width=device-width, initial-scale=1'
+              const styles = exported.createElement('style')
+              styles.textContent = 'body{max-width:55rem;margin:auto;padding:1rem;background:#F0F4FA;color:#182D43;font-family:system-ui,sans-serif}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}'
+              exported.head.prepend(charset, viewport, styles)
+              const title = exported.createElement('h1')
+              title.textContent = exported.title
+              const overview = exported.createElement('h2')
+              overview.textContent = text.reportCharts.performance
+              const details = exported.createElement('pre')
+              details.textContent = report
+              exported.body.append(title, overview)
+              if (chartExport.current) exported.body.append(chartExport.current.cloneNode(true))
+              exported.body.append(details)
+              const url = URL.createObjectURL(new Blob(['<!doctype html>', exported.documentElement.outerHTML], { type: 'text/html;charset=utf-8' }))
+              const link = document.createElement('a'); link.href = url; link.download = 'taleek-report.html'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
             }}>{ar ? 'تنزيل التقرير' : 'Download report'}</button>
           </div>
         </div>

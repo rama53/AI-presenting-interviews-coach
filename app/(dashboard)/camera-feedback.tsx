@@ -110,17 +110,10 @@ export function CameraFeedbackReport({ samples, previous, language }: {
   const ar = language === 'ar'
   const percentage = (data: CameraSamples) => Math.round(100 * data.visible / data.total)
   const available = samples.total >= 8
-  const percent = available ? percentage(samples) : 0
+  if (!available && samples.bodySamples < 8) return null
   return (
     <section className="mt-4 border-t border-slate-200 pt-4">
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FCD4A5] text-[#AD632D]"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="m16 10 5-3v10l-5-3"/></svg></div>
-        <div className="min-w-0 flex-1 space-y-2">
-          <h2 className="font-semibold text-[#182D43]">{ar ? 'الحضور أمام الكاميرا' : 'Camera presence'}</h2>
-          {available ? <><p className="text-sm text-slate-500">{ar ? 'ظهور الوجه في عينات الكاميرا' : 'Face visibility in camera samples'}</p><div className="h-2.5 overflow-hidden rounded-full bg-[#E9EDE8]"><div className="h-full rounded-full bg-[#29966B]" style={{width: percent + '%'}}/></div><p className="text-sm text-slate-500">{samples.sideTurns} {ar ? 'التفاتات جانبية مستمرة' : 'sustained sideways head turns'}</p></> : <p className="text-sm text-slate-500">{ar ? 'لا توجد عينات كاميرا كافية.' : 'Not enough camera samples.'}</p>}
-        </div>
-        {available && <svg className="h-20 w-20 shrink-0" viewBox="0 0 80 80" role="img" aria-label={percent + '%'}><circle cx="40" cy="40" r="32" fill="none" stroke="#E9EDE8" strokeWidth="7"/><circle cx="40" cy="40" r="32" fill="none" stroke="#29966B" strokeWidth="7" strokeDasharray={percent * 2.0106 + ' 201.06'} strokeLinecap="round" transform="rotate(-90 40 40)"/><text x="40" y="45" fontSize="18" fontWeight="bold" fill="#182D43" textAnchor="middle">{percent}%</text></svg>}
-      </div>
+      {available && <p className="text-sm text-slate-500"><bdi>{samples.sideTurns}</bdi> {ar ? 'التفاتات جانبية مستمرة' : 'sustained sideways head turns'}</p>}
       {samples.bodySamples >= 8 && (
         <div className="mt-3 space-y-1 text-sm">
           <h3 className="font-semibold">{ar ? 'لغة الجسد والإطار' : 'Body language and framing'}</h3>

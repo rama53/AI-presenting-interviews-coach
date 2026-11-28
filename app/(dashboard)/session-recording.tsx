@@ -1,13 +1,15 @@
+import type { PerformanceChartData } from '@/lib/performance-report-charts'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { recordingUrl, saveSessionReport, uploadSessionRecording } from '@/lib/practice-session-api'
 
 type SaveStatus = 'saving' | 'saved' | 'error'
 
-export function SaveSessionFeedback({ token, sessionId, comments, recording, arabic, onSaved }: {
+export function SaveSessionFeedback({ token, sessionId, comments, charts, recording, arabic, onSaved }: {
   token: string
   sessionId: string
   comments: string[]
+  charts: PerformanceChartData
   recording?: Blob
   arabic: boolean
   onSaved: () => void
@@ -17,10 +19,10 @@ export function SaveSessionFeedback({ token, sessionId, comments, recording, ara
   const queued = useRef(Promise.resolve())
   const scheduledComments = useRef<string | null>(null)
   const uploadedRecording = useRef(false)
-  const commentsKey = JSON.stringify(comments)
+  const commentsKey = JSON.stringify({ comments, charts })
 
   // Serialize writes because the server replaces the entire report, including its recording flag.
-  function save(key: string, snapshot: string[], file?: Blob) {
+  function save(key: string, snapshot: { comments: string[]; charts: PerformanceChartData }, file?: Blob) {
     if (!file) setFeedback({ key, status: 'saving' })
     if (file) setRecordingStatus('saving')
 
@@ -30,7 +32,7 @@ export function SaveSessionFeedback({ token, sessionId, comments, recording, ara
           await uploadSessionRecording(token, sessionId, file)
           uploadedRecording.current = true
         }
-        await saveSessionReport(token, sessionId, { comments: snapshot, recording: uploadedRecording.current })
+        await saveSessionReport(token, sessionId, { ...snapshot, recording: uploadedRecording.current })
         onSaved()
         setFeedback(previous => previous?.key === key ? { key, status: 'saved' } : previous)
         if (file) setRecordingStatus('saved')
@@ -42,29 +44,29 @@ export function SaveSessionFeedback({ token, sessionId, comments, recording, ara
   }
 
   useEffect(() => {
-    if (!comments.length || scheduledComments.current === commentsKey) return
+    if (scheduledComments.current === commentsKey) return
     scheduledComments.current = commentsKey
-    save(commentsKey, comments)
+    save(commentsKey, { comments, charts })
   })
 
   const status = feedback?.key === commentsKey ? feedback.status : null
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-      {comments.length > 0 && (
+      {status && (
         <p role="status" className="text-muted-foreground">
-          {status === 'saving' && (arabic ? 'جارٍ حفظ الملاحظات…' : 'Saving feedback…')}
-          {status === 'saved' && (arabic ? 'تم حفظ الملاحظات في سجل الجلسات.' : 'Feedback saved to session history.')}
-          {status === 'error' && (arabic ? 'تعذّر حفظ الملاحظات.' : 'Could not save feedback.')}
+          {status === 'saving' && (arabic ? 'جارٍ حفظ التقرير…' : 'Saving report…')}
+          {status === 'saved' && (arabic ? 'تم حفظ التقرير في سجل الجلسات.' : 'Report saved to session history.')}
+          {status === 'error' && (arabic ? 'تعذّر حفظ التقرير.' : 'Could not save report.')}
         </p>
       )}
       {status === 'error' && (
-        <Button type="button" size="sm" variant="link" onClick={() => save(commentsKey, comments)}>
-          {arabic ? 'إعادة محاولة الحفظ' : 'Retry saving feedback'}
+        <Button type="button" size="sm" variant="link" onClick={() => save(commentsKey, { comments, charts })}>
+          {arabic ? 'إعادة محاولة الحفظ' : 'Retry saving report'}
         </Button>
       )}
       {recording && recordingStatus !== 'saved' && (
-        <Button type="button" size="sm" variant="outline" onClick={() => save(commentsKey, comments, recording)} disabled={recordingStatus === 'saving'}>
+        <Button type="button" size="sm" variant="outline" onClick={() => save(commentsKey, { comments, charts }, recording)} disabled={recordingStatus === 'saving'}>
           {recordingStatus === 'error' ? (arabic ? 'إعادة محاولة حفظ التسجيل' : 'Retry saving recording') : (arabic ? 'حفظ التسجيل' : 'Save recording')}
         </Button>
       )}

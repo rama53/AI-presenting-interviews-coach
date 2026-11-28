@@ -10,7 +10,7 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 app = FastAPI(title="Taleeq API")
 
@@ -128,9 +128,26 @@ def recent_sessions(
     )
 
 
+class ReportCameraSamples(BaseModel):
+    total: int = Field(ge=0)
+    visible: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def check_visible_count(self):
+        if self.visible > self.total:
+            raise ValueError("Visible samples cannot exceed total samples")
+        return self
+
+
+class PracticeReportCharts(BaseModel):
+    camera: ReportCameraSamples
+    questions: list[bool] | None = Field(default=None, max_length=9)
+
+
 class PracticeReport(BaseModel):
     comments: list[str] = Field(max_length=30)
     recording: bool
+    charts: PracticeReportCharts | None = None
 
 
 @app.post("/sessions/{session_id}/report")

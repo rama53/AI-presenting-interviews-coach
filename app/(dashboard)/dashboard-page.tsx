@@ -111,8 +111,8 @@ export function DashboardPage() {
           accessToken={account?.token ?? null}
           onClose={() => setSelectedPractice(null)}
           onReportSaved={() => setHistoryRevision(revision => revision + 1)}
-          onComplete={(interviewType) => {
-            if (!sessionApiEnabled) setSessions(saveSession(selectedPractice.id, sessions, interviewType))
+          onComplete={(interviewType, charts) => {
+            if (!sessionApiEnabled) setSessions(saveSession(selectedPractice.id, sessions, interviewType, { comments: [], recording: false, charts }))
           }}
         />
       </main>

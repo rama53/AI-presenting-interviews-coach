@@ -1,10 +1,12 @@
+import type { PerformanceChartData } from './performance-report-charts'
+
 const apiUrl = process.env.NEXT_PUBLIC_TALEEQ_API_URL
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 export const sessionApiEnabled = Boolean(apiUrl && supabaseUrl && publishableKey)
 
-export type SavedPracticeReport = { comments: string[]; recording: boolean }
+export type SavedPracticeReport = { comments: string[]; recording: boolean; charts?: PerformanceChartData | null }
 
 function recordingStorage(token: string, sessionId: string) {
   if (!supabaseUrl || !publishableKey) throw new Error('configuration')

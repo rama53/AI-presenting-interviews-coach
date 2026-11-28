@@ -2,6 +2,7 @@ import { AudioLines, ChevronDown, MessageSquareText } from 'lucide-react'
 import type { SavedPracticeReport } from '@/lib/practice-session-api'
 import { SessionRecordingPlayer } from './session-recording'
 import type { DashboardCopy, Language } from './copy'
+import { PerformanceReportCharts } from './performance-report-charts'
 import { AssessmentCriteria } from './assessment-criteria'
 
 const storageKey = 'speakwell.recent-sessions'
@@ -37,8 +38,8 @@ export function readSessions(): SessionRecord[] {
   }
 }
 
-export function saveSession(practice: PracticeId, current: SessionRecord[], interviewType?: InterviewType): SessionRecord[] {
-  const record = { id: crypto.randomUUID(), practice, interviewType, completedAt: new Date().toISOString() }
+export function saveSession(practice: PracticeId, current: SessionRecord[], interviewType?: InterviewType, report?: SavedPracticeReport): SessionRecord[] {
+  const record = { id: crypto.randomUUID(), practice, interviewType, report, completedAt: new Date().toISOString() }
   try {
     const previous = localStorage.getItem(storageKey) === null ? current : readSessions()
     const recent = [record, ...previous].slice(0, sessionLimit)
@@ -89,7 +90,7 @@ export function RecentSessions({ sessions, text, language, historyMessage, acces
                     </span>
                     <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
                       {session.report?.recording ? (language === 'ar' ? 'تسجيل محفوظ' : 'Recording saved')
-                        : session.report?.comments?.length ? (language === 'ar' ? 'ملاحظات محفوظة' : 'Feedback saved') : text.reportUnavailable}
+                        : (session.report?.comments?.length || session.report?.charts) ? (language === 'ar' ? 'ملاحظات محفوظة' : 'Feedback saved') : text.reportUnavailable}
                     </span>
                     <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
                   </summary>
@@ -99,6 +100,7 @@ export function RecentSessions({ sessions, text, language, historyMessage, acces
                       <p>{isTechnical ? text.interviewSetup.technicalPrompt : option.prompt}</p>
                       <AssessmentCriteria title={text.assessment} criteria={isTechnical ? text.interviewSetup.technicalCriteria : option.criteria} />
                       {accessToken && session.report?.recording && <SessionRecordingPlayer token={accessToken} sessionId={session.id} arabic={language === 'ar'} />}
+                      {session.report?.charts && <PerformanceReportCharts data={session.report.charts} language={language} />}
                       {Boolean(session.report?.comments?.length) && (
                         <div>
                           <h3 className="font-semibold">{language === 'ar' ? 'ملاحظات الأداء' : 'Performance feedback'}</h3>
